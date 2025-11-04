@@ -25,3 +25,8 @@
 2. Hook users via competitive trading/math
 3. Sharing strats / education market can make more money
 4. Democratise quant
+
+# Dev Requirements
+1. Use fastest and most supported language possible, Rust / Python
+2. Able to handle large data
+3. Fast and Simple GUI/TUI
