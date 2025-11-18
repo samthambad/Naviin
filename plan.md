@@ -31,3 +31,5 @@
 2. Able to handle large data
 3. Fast and Simple GUI/TUI
 4. Use DSA concepts to speed it up so that you remember it
+
+rename to Naviin
