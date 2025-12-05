@@ -1,6 +1,7 @@
 use std::io::{self, Write};
 
 mod account;
+mod storage;
 
 fn main() {
     let mut username = String::new();
@@ -11,8 +12,8 @@ fn main() {
     io::stdin()
         .read_line(&mut username)
         .expect("Invalid username entered");
-}
-
-fn validate(&String username) -> bool {
-    // check against storage
+    username = username.trim().to_string();
+    if !storage::username_checker(&username) {
+        println!("Account is not registered");
+    }
 }
