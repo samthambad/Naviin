@@ -6,7 +6,7 @@ mod Storage;
 
 fn main() {
     let mut username = String::new();
-    let mut state = AppState::new();
+    let mut state = AppState::AppState::new();
 
     println!("Enter login details");
     print!("Username:");
@@ -18,21 +18,29 @@ fn main() {
     if !Storage::username_checker(&username) {
         println!("Account is not registered");
     }
-    print!("What would you like to do today? ");
-    io::stdout().flush().unwrap();
-    let mut command = String::new();
-    io::stdin()
-        .read_line(&mut command)
-        .expect("Invalid command entered");
-    command = command.trim().to_string();
-    if command == "fund" {
-        print!("Amount: ");
+    loop {
+        print!("What would you like to do today? ");
         io::stdout().flush().unwrap();
-        let mut fund_amount = String::new();
+        let mut command = String::new();
         io::stdin()
-            .read_line(&mut fund_amount)
-            .expect("Invalid amount entered");
-        let fund_amount: f64 = fund_amount.trim().parse().unwrap();
-        Finance::fund(fund_amount);
+            .read_line(&mut command)
+            .expect("Invalid command entered");
+        command = command.trim().to_string();
+        if command == "fund" {
+            print!("Amount: ");
+            io::stdout().flush().unwrap();
+            let mut fund_amount = String::new();
+            io::stdin()
+                .read_line(&mut fund_amount)
+                .expect("Invalid amount entered");
+            let fund_amount: f64 = fund_amount.trim().parse().unwrap();
+            Finance::fund(&mut state, fund_amount);
+        }
+        if command == "display" {
+            state.display();
+        }
+        if command == "exit" {
+            break;
+        }
     }
 }
