@@ -1,17 +1,16 @@
 # Objective
 
-1. Make investing easy for the layperson
-2. Quickly find out the needs + risk of the consumer
-3. Suggest certain categories of financial instruments
-4. Educate to increase risk and DD
-5. Somehow teach them not to trade like retards
+A CLI-native trading OS that tracks your portfolio, strategies,
+and performance, eventually using crypto as the universal money layer.
 
-# Product ideas
+This is aimed at technical beginners who want real-time prices and a safe way to learn trading fundamentals through paper trading, using a no-bloat command-line toolkit that teaches how portfolios and risk really work.
 
-- An easy investing app, that doesn't misinform, no AI bullshit unless there is an actual use case, able to provide diverse instruments
-- Low latency
-- Desktop first, keybinds
-- Fundamentals
+## Because currently, the alternatives are:
+
+- overwhelming GUIs
+- expensive quant platforms
+- overly simplistic paper trading apps
+- spreadsheets
 
 # MVP 2025 december week 1
 
@@ -34,4 +33,3 @@
 1. Use fastest and most supported language possible, Rust / Python
 2. Able to handle large data
 3. Fast and Simple GUI/TUI
-4. Use DSA concepts to speed it up so that you remember it
