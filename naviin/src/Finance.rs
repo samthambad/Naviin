@@ -1,5 +1,9 @@
-pub fn fund(amount: f64) {
-    println!("Fund amount: {amount}");
+use crate::AppState::AppState;
+
+pub fn fund(state: &mut AppState, amount: f64) {
+    // validate payment first
+    state.deposit(amount);
+    state.display();
 }
 
 pub type Symbol = String;
