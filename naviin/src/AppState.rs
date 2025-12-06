@@ -20,7 +20,20 @@ impl AppState {
     pub fn deposit(&mut self, amount: f64) {
         self.cash_balance += amount;
     }
+
+    pub fn withdraw(&mut self, amount: f64) {
+        if amount <= 0.0 {
+            println!("Invalid amount");
+            return;
+        }
+        self.cash_balance -= amount;
+    }
+
     pub fn display(&self) {
         println!("Cash balance: {}", self.cash_balance)
+    }
+
+    pub fn check_balance(&self) -> f64 {
+        self.cash_balance
     }
 }

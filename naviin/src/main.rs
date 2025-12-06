@@ -39,6 +39,16 @@ fn main() {
         if command == "display" {
             state.display();
         }
+        if command == "withdraw" {
+            print!("Amount: ");
+            io::stdout().flush().unwrap();
+            let mut withdraw_amount = String::new();
+            io::stdin()
+                .read_line(&mut withdraw_amount)
+                .expect("Invalid amount entered");
+            let withdraw_amount: f64 = withdraw_amount.trim().parse().unwrap();
+            Finance::withdraw(&mut state, withdraw_amount);
+        }
         if command == "exit" {
             break;
         }
