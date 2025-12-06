@@ -1,10 +1,12 @@
 use std::io::{self, Write};
 
+mod AppState;
 mod Finance;
 mod Storage;
 
 fn main() {
     let mut username = String::new();
+    let mut state = AppState::new();
 
     println!("Enter login details");
     print!("Username:");
@@ -30,7 +32,7 @@ fn main() {
         io::stdin()
             .read_line(&mut fund_amount)
             .expect("Invalid amount entered");
-        fund_amount = fund_amount.parse().unwrap();
-        println!("Fund amount: {fund_amount}");
+        let fund_amount: f64 = fund_amount.trim().parse().unwrap();
+        Finance::fund(fund_amount);
     }
 }
