@@ -50,6 +50,7 @@ fn main() {
             Finance::withdraw(&mut state, withdraw_amount);
         }
         if command == "exit" {
+            // save command here
             break;
         }
     }

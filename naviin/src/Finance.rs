@@ -23,14 +23,17 @@ pub fn withdraw(state: &mut AppState, amount: f64) {
     state.display();
 }
 
+#[derive(Debug, Serialize, Deserialize)]
 pub type Symbol = String;
 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Holding {
     name: String,
     quantity: f64,
     avg_cost: f64,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Trade {
     symbol: Symbol,
     quantity: f64,
@@ -39,6 +42,7 @@ pub struct Trade {
     timestamp: i64, // epoch seconds
 }
 
+#[derive(Debug, Serialize, Deserialize)]
 pub enum Side {
     Buy,
     Sell,
