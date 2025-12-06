@@ -1,6 +1,10 @@
 use crate::AppState::AppState;
 
 pub fn fund(state: &mut AppState, amount: f64) {
+    if amount <= 0.0 {
+        println!("Invalid amount");
+        return;
+    }
     // validate payment first
     state.deposit(amount);
     state.display();
