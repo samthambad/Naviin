@@ -14,6 +14,11 @@ pub fn save_state(state: &AppState) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-// pub fn load_state() -> AppState {}
+pub fn load_state() -> AppState {
+    // only runs after login
+    let data =
+        fs::read_to_string("state.json").unwrap_or_else(|_| panic!("Could not read state.json"));
+    serde_json::from_str(&data).unwrap_or_else(|_| panic!("Invalid state.json format"))
+}
 
-// pub fn default_state() -> AppState {}
+pub fn default_state() -> AppState {}
