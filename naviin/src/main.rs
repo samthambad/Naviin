@@ -8,16 +8,15 @@ fn main() {
     let mut username = String::new();
     let mut state = AppState::AppState::new();
 
-    println!("Enter login details");
-    print!("Username:");
-    io::stdout().flush().unwrap(); // to make sure it prints
-    io::stdin()
-        .read_line(&mut username)
-        .expect("Invalid username entered");
-    username = username.trim().to_string();
-    if !Storage::username_checker(&username) {
-        println!("Account is not registered");
-    }
+    // println!("Enter login details");
+    // print!("Username:");
+    // io::stdout().flush().unwrap(); // to make sure it prints
+    // io::stdin()
+    //     .read_line(&mut username)
+    //     .expect("Invalid username entered");
+    // username = username.trim().to_string();
+    // // if this returns true, check
+    // Storage::username_checker(&username);
     loop {
         print!("What would you like to do today? ");
         io::stdout().flush().unwrap();
