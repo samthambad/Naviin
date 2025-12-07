@@ -1,23 +1,26 @@
-use std::io::{self, Write};
+use std::{
+    collections::hash_map::Keys,
+    io::{self, Write},
+};
 
 mod AppState;
 mod Finance;
 mod Storage;
 
 fn main() {
-    let mut username = String::new();
-    let mut state = AppState::AppState::new();
+    // let mut username = String::new();
+    // TODO: load the state here
+    let mut state = Storage::load_state();
 
-    println!("Enter login details");
-    print!("Username:");
-    io::stdout().flush().unwrap(); // to make sure it prints
-    io::stdin()
-        .read_line(&mut username)
-        .expect("Invalid username entered");
-    username = username.trim().to_string();
-    if !Storage::username_checker(&username) {
-        println!("Account is not registered");
-    }
+    // println!("Enter login details");
+    // print!("Username:");
+    // io::stdout().flush().unwrap(); // to make sure it prints
+    // io::stdin()
+    //     .read_line(&mut username)
+    //     .expect("Invalid username entered");
+    // username = username.trim().to_string();
+    // // if this returns true, check
+    // Storage::username_checker(&username);
     loop {
         print!("What would you like to do today? ");
         io::stdout().flush().unwrap();
@@ -35,6 +38,7 @@ fn main() {
                 .expect("Invalid amount entered");
             let fund_amount: f64 = fund_amount.trim().parse().unwrap();
             Finance::fund(&mut state, fund_amount);
+            Storage::save_state(&state);
         }
         if command == "display" {
             state.display();
@@ -48,8 +52,10 @@ fn main() {
                 .expect("Invalid amount entered");
             let withdraw_amount: f64 = withdraw_amount.trim().parse().unwrap();
             Finance::withdraw(&mut state, withdraw_amount);
+            Storage::save_state(&state);
         }
         if command == "exit" {
+            Storage::save_state(&state);
             break;
         }
     }

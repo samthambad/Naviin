@@ -1,7 +1,10 @@
-use std::{collections::HashMap, hash::Hash};
+use std::collections::HashMap;
+
+use serde::{Deserialize, Serialize};
 
 use crate::Finance::{Holding, Symbol, Trade};
 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct AppState {
     cash_balance: f64,
     holdings: HashMap<Symbol, Holding>,
