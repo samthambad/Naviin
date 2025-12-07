@@ -31,4 +31,6 @@ pub fn load_state() -> AppState {
     }
 }
 
-// pub fn default_state() -> AppState {}
+pub fn default_state() -> AppState {
+    AppState::new()
+}
