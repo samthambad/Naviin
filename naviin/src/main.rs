@@ -1,12 +1,16 @@
-use std::io::{self, Write};
+use std::{
+    collections::hash_map::Keys,
+    io::{self, Write},
+};
 
 mod AppState;
 mod Finance;
 mod Storage;
 
 fn main() {
-    let mut username = String::new();
-    let mut state = AppState::AppState::new();
+    // let mut username = String::new();
+    // TODO: load the state here
+    let mut state = Storage::load_state();
 
     // println!("Enter login details");
     // print!("Username:");

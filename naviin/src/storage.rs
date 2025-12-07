@@ -15,10 +15,20 @@ pub fn save_state(state: &AppState) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 pub fn load_state() -> AppState {
-    // only runs after login
-    let data =
-        fs::read_to_string("state.json").unwrap_or_else(|_| panic!("Could not read state.json"));
-    serde_json::from_str(&data).unwrap_or_else(|_| panic!("Invalid state.json format"))
+    // Try to read file
+    let data = match fs::read_to_string("state.json") {
+        Ok(s) => s,
+        Err(_) => return AppState::new(),
+    };
+
+    // Try to parse JSON
+    match serde_json::from_str(&data) {
+        Ok(s) => {
+            println!("Found a save file, restoring...");
+            s
+        }
+        Err(_) => AppState::new(),
+    }
 }
 
-pub fn default_state() -> AppState {}
+// pub fn default_state() -> AppState {}
