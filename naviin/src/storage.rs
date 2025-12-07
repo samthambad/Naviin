@@ -1,5 +1,5 @@
 use crate::AppState::AppState;
-use std::{fs, io, path::Path};
+use std::fs;
 
 const STATE_PATH: &str = "state.json";
 
@@ -8,8 +8,12 @@ pub fn username_checker(username: &String) -> bool {
     true
 }
 
-pub fn save_state(state: &AppState) {}
+pub fn save_state(state: &AppState) -> Result<(), Box<dyn std::error::Error>> {
+    let json = serde_json::to_string_pretty(state)?;
+    fs::write(STATE_PATH, json)?;
+    Ok(())
+}
 
-pub fn load_state() -> AppState {}
+// pub fn load_state() -> AppState {}
 
-pub fn default_state() -> AppState {}
+// pub fn default_state() -> AppState {}

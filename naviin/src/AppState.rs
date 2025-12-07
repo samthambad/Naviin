@@ -1,4 +1,6 @@
-use std::{collections::HashMap, hash::Hash};
+use std::collections::HashMap;
+
+use serde::{Deserialize, Serialize};
 
 use crate::Finance::{Holding, Symbol, Trade};
 

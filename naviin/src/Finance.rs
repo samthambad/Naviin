@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use crate::AppState::AppState;
 
 pub fn fund(state: &mut AppState, amount: f64) {
@@ -23,7 +25,6 @@ pub fn withdraw(state: &mut AppState, amount: f64) {
     state.display();
 }
 
-#[derive(Debug, Serialize, Deserialize)]
 pub type Symbol = String;
 
 #[derive(Debug, Serialize, Deserialize)]
