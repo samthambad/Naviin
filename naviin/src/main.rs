@@ -1,26 +1,15 @@
-use std::{
-    collections::hash_map::Keys,
-    io::{self, Write},
-};
+use std::io::{self, Write};
 
 mod AppState;
 mod Finance;
+mod FinanceProvider;
 mod Storage;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     // let mut username = String::new();
     // TODO: load the state here
     let mut state = Storage::load_state();
-
-    // println!("Enter login details");
-    // print!("Username:");
-    // io::stdout().flush().unwrap(); // to make sure it prints
-    // io::stdin()
-    //     .read_line(&mut username)
-    //     .expect("Invalid username entered");
-    // username = username.trim().to_string();
-    // // if this returns true, check
-    // Storage::username_checker(&username);
     loop {
         print!("What would you like to do today? ");
         io::stdout().flush().unwrap();
@@ -53,6 +42,16 @@ fn main() {
             let withdraw_amount: f64 = withdraw_amount.trim().parse().unwrap();
             Finance::withdraw(&mut state, withdraw_amount);
             Storage::save_state(&state);
+        }
+        if command == "price" {
+            print!("Enter ticker: ");
+            io::stdout().flush().unwrap();
+            let mut ticker = String::new();
+            io::stdin()
+                .read_line(&mut ticker)
+                .expect("Invalid amount entered");
+            let ticker = ticker.trim();
+            FinanceProvider::print_previous_close(&ticker).await;
         }
         if command == "exit" {
             Storage::save_state(&state);
