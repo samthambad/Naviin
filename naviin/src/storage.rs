@@ -8,10 +8,14 @@ pub fn username_checker(username: &String) -> bool {
     true
 }
 
-pub fn save_state(state: &AppState) -> Result<(), Box<dyn std::error::Error>> {
-    let json = serde_json::to_string_pretty(state)?;
-    fs::write(STATE_PATH, json)?;
-    Ok(())
+pub fn save_state(state: &AppState) {
+    match serde_json::to_string_pretty(state) {
+        Ok(json) => match fs::write(STATE_PATH, json) {
+            Ok(_) => (),
+            Err(err) => eprintln!("Failed to save state: {err:?}"),
+        },
+        Err(err) => eprintln!("Failed to serialize state: {err:?}"),
+    }
 }
 
 pub fn load_state() -> AppState {
