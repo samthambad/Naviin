@@ -7,8 +7,8 @@ pub async fn print_previous_close(symbol: &str) {
 
     match ticker.quote().await {
         Ok(quote) => match quote.previous_close {
-            Some(price) => println!("{symbol} -> ${price}"),
-            None => println!("{symbol} -> previous close unavailable"),
+            Some(price) => println!("Previous close: {price}"),
+            None => eprintln!("{symbol} -> previous close unavailable"),
         },
         Err(err) => eprintln!("Failed to fetch {symbol} quote: {err}"),
     }
