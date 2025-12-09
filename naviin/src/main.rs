@@ -5,7 +5,8 @@ mod Finance;
 mod FinanceProvider;
 mod Storage;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     // let mut username = String::new();
     // TODO: load the state here
     let mut state = Storage::load_state();
@@ -49,7 +50,8 @@ fn main() {
             io::stdin()
                 .read_line(&mut ticker)
                 .expect("Invalid amount entered");
-            FinanceProvider::fetch_price_ticker(ticker.trim());
+            let ticker = ticker.trim();
+            FinanceProvider::print_previous_close(&ticker).await;
         }
         if command == "exit" {
             Storage::save_state(&state);
