@@ -23,6 +23,8 @@ This is aimed at technical beginners who want real-time prices and a safe way to
 
 # 2025 December week 2
 
+1. As a user I want to see the prices, so that I know what to buy/sell at
+
 # Actual MVP
 
 1. Money is stored as blockchain
