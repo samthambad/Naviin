@@ -1,9 +1,8 @@
 use yfinance_rs::{Ticker, YfClient};
 
-pub async fn print_previous_close(symbol: &str) {
-    let symbol = symbol.trim();
+pub async fn print_previous_close(symbol: &String) {
     let client = YfClient::default();
-    let ticker = Ticker::new(&client, symbol);
+    let ticker = Ticker::new(&client, &symbol);
 
     match ticker.quote().await {
         Ok(quote) => match quote.previous_close {

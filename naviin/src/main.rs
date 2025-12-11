@@ -4,6 +4,7 @@ mod AppState;
 mod Finance;
 mod FinanceProvider;
 mod Storage;
+mod UserInput;
 
 #[tokio::main]
 async fn main() {
@@ -44,14 +45,16 @@ async fn main() {
             Storage::save_state(&state);
         }
         if command == "price" {
-            print!("Enter ticker: ");
-            io::stdout().flush().unwrap();
-            let mut ticker = String::new();
-            io::stdin()
-                .read_line(&mut ticker)
-                .expect("Invalid amount entered");
-            let ticker = ticker.trim();
+            let ticker = UserInput::askTicker();
             FinanceProvider::print_previous_close(&ticker).await;
+        }
+        if command == "buy" {
+            // ask for ticker
+            // ask for quantity (fractions are allowed)
+            // show the total price of purchase
+            // check account funds
+            // deduct funds
+            // add the purchase to holdings
         }
         if command == "exit" {
             Storage::save_state(&state);
