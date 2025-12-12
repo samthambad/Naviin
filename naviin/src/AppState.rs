@@ -47,4 +47,8 @@ impl AppState {
     pub fn check_balance(&self) -> f64 {
         self.cash_balance
     }
+
+    pub fn get_holdings(&self) ->HashMap<Symbol, Holding> {
+        self.holdings.clone()
+    }
 }
