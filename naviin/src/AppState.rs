@@ -32,6 +32,14 @@ impl AppState {
         self.cash_balance -= amount;
     }
 
+    pub fn withdraw_purchase(&mut self, amount: f64) {
+        if amount <= 0.0 {
+            println!("Invalid amount");
+            return;
+        }
+        self.cash_balance -= amount;
+    }
+
     pub fn display(&self) {
         println!("Cash balance: {}", self.cash_balance)
     }
