@@ -45,7 +45,16 @@ impl AppState {
     }
 
     pub fn display(&self) {
-        println!("Cash balance: {}", self.cash_balance)
+        println!("Cash balance: {}", self.cash_balance);
+        if self.holdings.len() == 0 {
+            println!("NO HOLDINGS");
+        }
+        else {
+            println!("Holdings:");
+            for (symbol, holding) in &self.holdings {
+                println!("  {}: {:?}", symbol, holding);
+            }
+        }
     }
 
     pub fn check_balance(&self) -> f64 {
@@ -58,7 +67,7 @@ impl AppState {
 
     pub fn set_holdings_map(&mut self, new_holdings_map: HashMap<Symbol, Holding>) {
         self.holdings = new_holdings_map;
-        println!("holdings have changed");
+        self.display();
     }
 
     pub fn add_trade(&mut self, trade_to_add: Trade) {
