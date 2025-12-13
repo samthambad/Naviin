@@ -32,7 +32,14 @@ pub fn ask_quantity() -> f64 {
         let mut quantity = String::new();
         match io::stdin().read_line(&mut quantity) {
             Ok(_) => match quantity.trim().parse::<f64>() {
-                Ok(num) => return num,
+                Ok(num) => {
+                    if (num <= 0.0) {
+                        println!("Enter a positive quantity");
+                        continue;
+                    }
+                    return num;
+                    
+                }
                 Err(_) => println!("Invalid number entered. Please enter a valid quantity."),
             },
             Err(error) => println!("Error reading input: {}. Please try again.", error),
