@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, thread::sleep};
 
 use serde::{Deserialize, Serialize};
 
@@ -48,7 +48,12 @@ impl AppState {
         self.cash_balance
     }
 
-    pub fn get_holdings(&self) ->HashMap<Symbol, Holding> {
+    pub fn get_holdings_map(&self) ->HashMap<Symbol, Holding> {
         self.holdings.clone()
+    }
+
+    pub fn set_holdings_map(&mut self, new_holdings_map: HashMap<Symbol, Holding>) {
+        self.holdings = new_holdings_map;
+        println!("holdings have changed");
     }
 }
