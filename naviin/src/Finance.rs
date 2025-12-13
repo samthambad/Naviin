@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use serde_json::map;
 
 use crate::{AppState::AppState, FinanceProvider, UserInput};
 
@@ -44,6 +44,12 @@ impl Holding {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum Side {
+    Buy,
+    Sell,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Trade {
     symbol: Symbol,
     quantity: f64,
@@ -52,11 +58,12 @@ pub struct Trade {
     timestamp: i64, // epoch seconds
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum Side {
-    Buy,
-    Sell,
+impl Trade {
+    pub fn buy(symbol: Symbol, quantity: f64, price_per: f64) -> Self {
+        Self {symbol, quantity, price_per, side: Side::Buy, timestamp: Utc::now().timestamp()}
+    }
 }
+
 
 pub async fn buy(state: &mut AppState) {
         // ask for ticker
