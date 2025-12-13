@@ -51,7 +51,12 @@ async fn main() {
         if command == "buy" {
             Finance::buy(&mut state).await;
             Storage::save_state(&state);
-        } if command == "reset" {
+        }
+        if command == "sell" {
+            Finance::sell(&mut state).await;
+            Storage::save_state(&state);
+        }
+        if command == "reset" {
             Storage::default_state(&mut state);
         }
         if command == "exit" {
