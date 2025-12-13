@@ -102,6 +102,7 @@ pub async fn buy(state: &mut AppState) {
         state.withdraw_purchase(total_price);
         // add the purchase to holdings
         add_to_holdings(&ticker, quantity, price_per, state);
+        state.add_trade(Trade::buy(ticker, quantity, price_per));
     }
 }
 

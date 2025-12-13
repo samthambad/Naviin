@@ -56,4 +56,10 @@ impl AppState {
         self.holdings = new_holdings_map;
         println!("holdings have changed");
     }
+
+    pub fn add_trade(&mut self, trade_to_add: Trade) {
+        let mut new_trades = self.trades.clone();
+        new_trades.push(trade_to_add);
+        self.trades = new_trades;
+    }
 }
