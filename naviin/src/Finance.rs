@@ -1,4 +1,7 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
+use serde_json::map;
 
 use crate::{AppState::AppState, FinanceProvider, UserInput};
 
@@ -34,6 +37,12 @@ pub struct Holding {
     avg_cost: f64,
 }
 
+impl Holding {
+    pub fn new(name: String, quantity: f64, avg_cost: f64) -> Self {
+        Self {name, quantity, avg_cost}
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Trade {
     symbol: Symbol,
@@ -67,14 +76,25 @@ pub async fn buy(state: &mut AppState) {
             // deduct funds
             state.withdraw_purchase(total_price);
             // add the purchase to holdings
-            add_to_holdings(&ticker, quantity, price_per);
+            add_to_holdings(&ticker, quantity, price_per, state);
         }
 }
 
 fn add_to_holdings(ticker: &String, quantity: f64, price_per: f64, state: &mut AppState) {
-    // calculate avg cost
-        // check if there are any exising holdings with the same ticker
-        state.holdings
-        // if no then price_per is the avg cost
-        // otherwise, (prev_qty*avg_cost + quantity*price_per) / (prev_qty + quantity)
+    let mut prev_holdings_map: HashMap<Symbol, Holding> = state.get_holdings_map();
+    
+    // Use HashMap's get method to check if holding exists
+    if let Some(existing_holding) = prev_holdings_map.get(ticker) {
+        // Update existing holding with new average cost
+        let prev_avg_cost = existing_holding.avg_cost;
+        let prev_qty = existing_holding.quantity;
+        let new_avg_cost = (prev_qty * prev_avg_cost + quantity * price_per) / (prev_qty + quantity);
+        let new_qty = prev_qty + quantity;
+        
+        prev_holdings_map.insert(ticker.clone(), Holding::new(ticker.clone(), new_qty, new_avg_cost));
+    } else {
+        // Insert new holding
+        prev_holdings_map.insert(ticker.clone(), Holding::new(ticker.clone(), quantity, price_per));
+    }
+    state.set_holdings_map(prev_holdings_map);
 }
