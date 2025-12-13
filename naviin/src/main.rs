@@ -45,16 +45,19 @@ async fn main() {
             Storage::save_state(&state);
         }
         if command == "price" {
-            let ticker = UserInput::askTicker();
-            FinanceProvider::print_previous_close(&ticker).await;
+            let ticker = UserInput::ask_ticker();
+            FinanceProvider::previous_price_close(&ticker, true).await;
         }
         if command == "buy" {
-            // ask for ticker
-            // ask for quantity (fractions are allowed)
-            // show the total price of purchase
-            // check account funds
-            // deduct funds
-            // add the purchase to holdings
+            Finance::buy(&mut state).await;
+            Storage::save_state(&state);
+        }
+        if command == "sell" {
+            Finance::sell(&mut state).await;
+            Storage::save_state(&state);
+        }
+        if command == "reset" {
+            Storage::default_state(&mut state);
         }
         if command == "exit" {
             Storage::save_state(&state);

@@ -35,6 +35,7 @@ pub fn load_state() -> AppState {
     }
 }
 
-pub fn default_state() -> AppState {
-    AppState::new()
+pub fn default_state(state: &mut AppState) {
+    *state = AppState::new();
+    save_state(state);
 }
