@@ -40,6 +40,10 @@ impl AppState {
         self.cash_balance -= amount;
     }
 
+    pub fn deposit_sell(&mut self, amount: f64) {
+        self.cash_balance += amount;
+    }
+
     pub fn display(&self) {
         println!("Cash balance: {}", self.cash_balance)
     }
@@ -62,4 +66,12 @@ impl AppState {
         new_trades.push(trade_to_add);
         self.trades = new_trades;
     }
+
+    pub fn get_ticker_holdings_qty(&self, ticker: &String) -> f64 {
+        match self.get_holdings_map().get(ticker) {
+            Some(holding) => holding.get_qty(),
+            None => 0.0,
+        }
+    }
+
 }
