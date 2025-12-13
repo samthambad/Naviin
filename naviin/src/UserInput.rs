@@ -1,23 +1,41 @@
 use std::io::{self, Write};
 
 pub fn ask_ticker() -> String {
-    print!("Enter the ticker: ");
-    io::stdout().flush().unwrap();
-    let mut ticker = String::new();
-    io::stdin()
-        .read_line(&mut ticker)
-        .expect("Invalid amount entered");
-    ticker
+    loop {
+        print!("Enter the ticker: ");
+        if let Err(e) = io::stdout().flush() {
+            eprintln!("Failed to flush stdout: {}", e);
+            continue;
+        }
+        let mut ticker = String::new();
+        match io::stdin().read_line(&mut ticker) {
+            Ok(_) => {
+                ticker.retain(|c| !c.is_whitespace());
+                if ticker.is_empty() {
+                    println!("Ticker cannot be empty. Please try again.");
+                    continue;
+                }
+                return ticker.to_uppercase();
+            }
+            Err(error) => println!("Error reading input: {}. Please try again.", error),
+        }
+    }
 }
 
 pub fn ask_quantity() -> f64 {
-    print!("Enter the quantity: ");
-    io::stdout().flush().unwrap();
-    let mut quantity = String::new();
-    io::stdin()
-        .read_line(&mut quantity)
-        .expect("Invalid amount entered");
-    let quantity: f64 = quantity.trim().parse().unwrap();
-    quantity
-
+    loop {
+        print!("Enter the quantity: ");
+        if let Err(e) = io::stdout().flush() {
+            eprintln!("Failed to flush stdout: {}", e);
+            continue;
+        }
+        let mut quantity = String::new();
+        match io::stdin().read_line(&mut quantity) {
+            Ok(_) => match quantity.trim().parse::<f64>() {
+                Ok(num) => return num,
+                Err(_) => println!("Invalid number entered. Please enter a valid quantity."),
+            },
+            Err(error) => println!("Error reading input: {}. Please try again.", error),
+        }
+    }
 }
