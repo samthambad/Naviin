@@ -45,6 +45,14 @@ impl Holding {
             avg_cost,
         }
     }
+
+    pub fn get_qty(&self) -> f64 {
+        self.quantity
+    }
+
+    pub fn get_avg_price(&self) -> f64 {
+        self.avg_cost
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -85,20 +93,15 @@ impl Trade {
 }
 
 pub async fn buy(state: &mut AppState) {
-    // ask for ticker
     let ticker = UserInput::ask_ticker();
-    // ask for quantity (fractions are allowed)
     let quantity: f64 = UserInput::ask_quantity();
-    // get the price per stock
-    let price_per: f64 = FinanceProvider::previous_price_close(&ticker, false).await;
-    // show the total price of purchase
-    let total_price: f64 = price_per * quantity;
+    let curr_price: f64 = FinanceProvider::previous_price_close(&ticker, false).await;
+    let total_price: f64 = curr_price * quantity;
+
     println!("The total price is: {total_price}");
-    // check account funds
     if state.check_balance() < total_price {
         println!("Insufficient balance");
     } else {
-        // deduct funds
         state.withdraw_purchase(total_price);
         add_to_holdings(&ticker, quantity, curr_price, state);
         state.add_trade(Trade::buy(ticker, quantity, curr_price));
