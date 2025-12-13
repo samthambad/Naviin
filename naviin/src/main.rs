@@ -49,7 +49,10 @@ async fn main() {
             FinanceProvider::previous_price_close(&ticker, true).await;
         }
         if command == "buy" {
-            Finance::buy(&mut state).await
+            Finance::buy(&mut state).await;
+            Storage::save_state(&state);
+        } if command == "reset" {
+            Storage::default_state(&mut state);
         }
         if command == "exit" {
             Storage::save_state(&state);
