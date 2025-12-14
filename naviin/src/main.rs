@@ -6,7 +6,6 @@ use naviin::{AppState, Finance, FinanceProvider, Storage, UserInput};
 #[tokio::main]
 async fn main() {
     // let mut username = String::new();
-    // TODO: load the state here
     let mut state = Storage::load_state();
     loop {
         print!("What would you like to do today? ");
