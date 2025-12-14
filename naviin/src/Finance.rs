@@ -93,8 +93,14 @@ impl Trade {
 }
 
 pub async fn buy(state: &mut AppState) {
-    let ticker = UserInput::ask_ticker();
-    let quantity: f64 = UserInput::ask_quantity();
+    let ticker = match UserInput::ask_ticker() {
+        Some(t) => t,
+        None => return,
+    };
+    let quantity: f64 = match UserInput::ask_quantity() {
+        Some(q) => q,
+        None => return,
+    };
     let curr_price: f64 = FinanceProvider::previous_price_close(&ticker, false).await;
     let total_price: f64 = curr_price * quantity;
 
@@ -109,8 +115,14 @@ pub async fn buy(state: &mut AppState) {
 }
 
 pub async fn sell(state: &mut AppState) {
-    let ticker = UserInput::ask_ticker();
-    let quantity: f64 = UserInput::ask_quantity();
+    let ticker = match UserInput::ask_ticker() {
+        Some(t) => t,
+        None => return,
+    };
+    let quantity: f64 = match UserInput::ask_quantity() {
+        Some(q) => q,
+        None => return,
+    };
     let curr_price: f64 = FinanceProvider::previous_price_close(&ticker, false).await;
     let total_price: f64 = curr_price * quantity;
     println!("The total price of sale is: {total_price}");

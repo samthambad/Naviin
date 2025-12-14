@@ -45,8 +45,9 @@ async fn main() {
             Storage::save_state(&state);
         }
         if command == "price" {
-            let ticker = UserInput::ask_ticker();
-            FinanceProvider::previous_price_close(&ticker, true).await;
+            if let Some(ticker) = UserInput::ask_ticker() {
+                FinanceProvider::previous_price_close(&ticker, true).await;
+            }
         }
         if command == "buy" {
             Finance::buy(&mut state).await;
