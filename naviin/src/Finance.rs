@@ -53,6 +53,15 @@ impl Holding {
     pub fn get_avg_price(&self) -> f64 {
         self.avg_cost
     }
+
+    async fn get_pnl(&self) -> f64 {
+        // fetch current price
+        let curr_price = FinanceProvider::previous_price_close(&self.name, false).await;
+        // price delta per share
+        let delta = curr_price - self.get_avg_price();
+        // multiply by the shares owned
+        delta * self.get_qty()
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -138,13 +147,13 @@ pub async fn sell(state: &mut AppState) {
     }
 }
 
-fn add_to_holdings(ticker: & String, quantity: f64, price_per: f64, state: &mut AppState) {
+fn add_to_holdings(ticker: &String, quantity: f64, price_per: f64, state: &mut AppState) {
     let mut prev_holdings_map: HashMap<Symbol, Holding> = state.get_holdings_map();
 
     // Use HashMap's get method to check if holding exists
     if let Some(existing_holding) = prev_holdings_map.get(ticker) {
         // Update existing holding with new average cost
-        let prev_avg_cost = existing_holding.avg_cost;
+        let prev_avg_cost = existing_holding.get_avg_price();
         let prev_qty = existing_holding.quantity;
         let new_avg_cost =
             (prev_qty * prev_avg_cost + quantity * price_per) / (prev_qty + quantity);
@@ -168,7 +177,7 @@ fn remove_from_holdings(ticker: &String, quantity: f64, state: &mut AppState) {
     let mut prev_holdings_map: HashMap<Symbol, Holding> = state.get_holdings_map();
     if let Some(existing_holding) = prev_holdings_map.get(ticker) {
         // Update existing holding with new average cost
-        let prev_avg_cost = existing_holding.avg_cost;
+        let prev_avg_cost = existing_holding.get_avg_price();
         let prev_qty = existing_holding.quantity;
         let new_qty = prev_qty - quantity;
         if new_qty == 0.0 {
