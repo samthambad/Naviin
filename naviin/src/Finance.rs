@@ -5,17 +5,17 @@ use serde::{Deserialize, Serialize};
 
 use crate::{AppState::AppState, FinanceProvider, UserInput};
 
-pub fn fund(state: &mut AppState, amount: f64) {
+pub async fn fund(state: &mut AppState, amount: f64) {
     if amount <= 0.0 {
         println!("Invalid amount");
         return;
     }
     // validate payment first
     state.deposit(amount);
-    state.display();
+    state.display().await;
 }
 
-pub fn withdraw(state: &mut AppState, amount: f64) {
+pub async fn withdraw(state: &mut AppState, amount: f64) {
     if amount <= 0.0 {
         println!("Invalid amount");
         return;
@@ -25,7 +25,7 @@ pub fn withdraw(state: &mut AppState, amount: f64) {
         return;
     }
     state.withdraw(amount);
-    state.display();
+    state.display().await;
 }
 
 pub type Symbol = String;
@@ -52,6 +52,15 @@ impl Holding {
 
     pub fn get_avg_price(&self) -> f64 {
         self.avg_cost
+    }
+
+    pub async fn get_pnl(&self) -> f64 {
+        // fetch current price
+        let curr_price = FinanceProvider::previous_price_close(&self.name, false).await;
+        // price delta per share
+        let delta = curr_price - self.get_avg_price();
+        // multiply by the shares owned
+        delta * self.get_qty()
     }
 }
 
@@ -90,6 +99,26 @@ impl Trade {
             timestamp: Utc::now().timestamp(),
         }
     }
+
+    pub fn get_symbol(&self) -> &Symbol {
+        &self.symbol
+    }
+
+    pub fn get_quantity(&self) -> f64 {
+        self.quantity
+    }
+
+    pub fn get_price_per(&self) -> f64 {
+        self.price_per
+    }
+
+    pub fn get_side(&self) -> &Side {
+        &self.side
+    }
+
+    pub fn get_timestamp(&self) -> i64 {
+        self.timestamp
+    }
 }
 
 pub async fn buy(state: &mut AppState) {
@@ -109,7 +138,7 @@ pub async fn buy(state: &mut AppState) {
         println!("Insufficient balance");
     } else {
         state.withdraw_purchase(total_price);
-        add_to_holdings(&ticker, quantity, curr_price, state);
+        add_to_holdings(&ticker, quantity, curr_price, state).await;
         state.add_trade(Trade::buy(ticker, quantity, curr_price));
     }
 }
@@ -133,18 +162,18 @@ pub async fn sell(state: &mut AppState) {
     } else {
         // add funds
         state.deposit_sell(total_price);
-        remove_from_holdings(&ticker, quantity, state);
+        remove_from_holdings(&ticker, quantity, state).await;
         state.add_trade(Trade::sell(ticker, quantity, curr_price));
     }
 }
 
-fn add_to_holdings(ticker: & String, quantity: f64, price_per: f64, state: &mut AppState) {
+async fn add_to_holdings(ticker: &String, quantity: f64, price_per: f64, state: &mut AppState) {
     let mut prev_holdings_map: HashMap<Symbol, Holding> = state.get_holdings_map();
 
     // Use HashMap's get method to check if holding exists
     if let Some(existing_holding) = prev_holdings_map.get(ticker) {
         // Update existing holding with new average cost
-        let prev_avg_cost = existing_holding.avg_cost;
+        let prev_avg_cost = existing_holding.get_avg_price();
         let prev_qty = existing_holding.quantity;
         let new_avg_cost =
             (prev_qty * prev_avg_cost + quantity * price_per) / (prev_qty + quantity);
@@ -161,14 +190,14 @@ fn add_to_holdings(ticker: & String, quantity: f64, price_per: f64, state: &mut 
             Holding::new(ticker.clone(), quantity, price_per),
         );
     }
-    state.set_holdings_map(prev_holdings_map);
+    state.set_holdings_map(prev_holdings_map).await;
 }
 
-fn remove_from_holdings(ticker: &String, quantity: f64, state: &mut AppState) {
+async fn remove_from_holdings(ticker: &String, quantity: f64, state: &mut AppState) {
     let mut prev_holdings_map: HashMap<Symbol, Holding> = state.get_holdings_map();
     if let Some(existing_holding) = prev_holdings_map.get(ticker) {
         // Update existing holding with new average cost
-        let prev_avg_cost = existing_holding.avg_cost;
+        let prev_avg_cost = existing_holding.get_avg_price();
         let prev_qty = existing_holding.quantity;
         let new_qty = prev_qty - quantity;
         if new_qty == 0.0 {
@@ -178,7 +207,7 @@ fn remove_from_holdings(ticker: &String, quantity: f64, state: &mut AppState) {
                 ticker.clone(),
                 Holding::new(ticker.clone(), new_qty, prev_avg_cost),
             );
-            state.set_holdings_map(prev_holdings_map);
+            state.set_holdings_map(prev_holdings_map).await;
         }
     }
 }
