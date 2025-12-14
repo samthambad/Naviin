@@ -50,6 +50,11 @@ These features move beyond simple market orders and make the simulation realisti
 3.  **Realistic Cost Simulation:** "Fake" P&L is a trap for beginners.
     *   **Configurable Commissions/Fees:** Add a setting to model broker commissions (e.g., $0.01 per share). This forces users to account for transaction costs.
 
+#### UX improvements
+
+1. Single keypress keybind.
+2. Recents dropdown for price lookup etc.
+
 ### Tier 2: Data Analysis & Basic Strategy
 
 This is where the "data-first" promise comes to life, helping users build and test strategies.
