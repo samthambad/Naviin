@@ -1,10 +1,7 @@
 use std::io::{self, Write};
 
-mod AppState;
-mod Finance;
-mod FinanceProvider;
-mod Storage;
-mod UserInput;
+// Import everything from the `naviin` library crate
+use naviin::{AppState, Finance, FinanceProvider, Storage, UserInput};
 
 #[tokio::main]
 async fn main() {

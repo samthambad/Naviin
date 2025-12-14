@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use chrono;
 use serde::{Deserialize, Serialize};
 
-use crate::Finance::{Holding, Symbol, Trade};
+use crate::Finance::{Holding, Symbol, Trade, Side};
 use crate::FinanceProvider;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -102,8 +102,7 @@ impl AppState {
                     "{:<10} {:<6} {:<10.2} {:<12.2} {:<20}",
                     trade.get_symbol(),
                     match trade.get_side() {
-                        Finance::Side::Buy => "BUY",
-                        Finance::Side::Sell => "SELL",
+                                                 Side::Buy => "BUY",                          Side::Sell => "SELL",
                     },
                     trade.get_quantity(),
                     trade.get_price_per(),
