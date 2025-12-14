@@ -27,11 +27,11 @@ async fn main() {
                 .read_line(&mut fund_amount)
                 .expect("Invalid amount entered");
             let fund_amount: f64 = fund_amount.trim().parse().unwrap();
-            Finance::fund(&mut state, fund_amount);
+            Finance::fund(&mut state, fund_amount).await;
             Storage::save_state(&state);
         }
         if command == "display" {
-            state.display();
+            state.display().await;
         }
         if command == "withdraw" {
             print!("Amount: ");
@@ -41,7 +41,7 @@ async fn main() {
                 .read_line(&mut withdraw_amount)
                 .expect("Invalid amount entered");
             let withdraw_amount: f64 = withdraw_amount.trim().parse().unwrap();
-            Finance::withdraw(&mut state, withdraw_amount);
+            Finance::withdraw(&mut state, withdraw_amount).await;
             Storage::save_state(&state);
         }
         if command == "price" {
