@@ -5,17 +5,17 @@ use serde::{Deserialize, Serialize};
 
 use crate::{AppState::AppState, FinanceProvider, UserInput};
 
-pub fn fund(state: &mut AppState, amount: f64) {
+pub async fn fund(state: &mut AppState, amount: f64) {
     if amount <= 0.0 {
         println!("Invalid amount");
         return;
     }
     // validate payment first
     state.deposit(amount);
-    state.display();
+    state.display().await;
 }
 
-pub fn withdraw(state: &mut AppState, amount: f64) {
+pub async fn withdraw(state: &mut AppState, amount: f64) {
     if amount <= 0.0 {
         println!("Invalid amount");
         return;
@@ -25,7 +25,7 @@ pub fn withdraw(state: &mut AppState, amount: f64) {
         return;
     }
     state.withdraw(amount);
-    state.display();
+    state.display().await;
 }
 
 pub type Symbol = String;
@@ -54,7 +54,7 @@ impl Holding {
         self.avg_cost
     }
 
-    async fn get_pnl(&self) -> f64 {
+    pub async fn get_pnl(&self) -> f64 {
         // fetch current price
         let curr_price = FinanceProvider::previous_price_close(&self.name, false).await;
         // price delta per share
