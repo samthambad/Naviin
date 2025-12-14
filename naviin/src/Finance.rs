@@ -99,6 +99,26 @@ impl Trade {
             timestamp: Utc::now().timestamp(),
         }
     }
+
+    pub fn get_symbol(&self) -> &Symbol {
+        &self.symbol
+    }
+
+    pub fn get_quantity(&self) -> f64 {
+        self.quantity
+    }
+
+    pub fn get_price_per(&self) -> f64 {
+        self.price_per
+    }
+
+    pub fn get_side(&self) -> &Side {
+        &self.side
+    }
+
+    pub fn get_timestamp(&self) -> i64 {
+        self.timestamp
+    }
 }
 
 pub async fn buy(state: &mut AppState) {
@@ -118,7 +138,7 @@ pub async fn buy(state: &mut AppState) {
         println!("Insufficient balance");
     } else {
         state.withdraw_purchase(total_price);
-        add_to_holdings(&ticker, quantity, curr_price, state);
+        add_to_holdings(&ticker, quantity, curr_price, state).await;
         state.add_trade(Trade::buy(ticker, quantity, curr_price));
     }
 }
@@ -142,12 +162,12 @@ pub async fn sell(state: &mut AppState) {
     } else {
         // add funds
         state.deposit_sell(total_price);
-        remove_from_holdings(&ticker, quantity, state);
+        remove_from_holdings(&ticker, quantity, state).await;
         state.add_trade(Trade::sell(ticker, quantity, curr_price));
     }
 }
 
-fn add_to_holdings(ticker: &String, quantity: f64, price_per: f64, state: &mut AppState) {
+async fn add_to_holdings(ticker: &String, quantity: f64, price_per: f64, state: &mut AppState) {
     let mut prev_holdings_map: HashMap<Symbol, Holding> = state.get_holdings_map();
 
     // Use HashMap's get method to check if holding exists
@@ -170,10 +190,10 @@ fn add_to_holdings(ticker: &String, quantity: f64, price_per: f64, state: &mut A
             Holding::new(ticker.clone(), quantity, price_per),
         );
     }
-    state.set_holdings_map(prev_holdings_map);
+    state.set_holdings_map(prev_holdings_map).await;
 }
 
-fn remove_from_holdings(ticker: &String, quantity: f64, state: &mut AppState) {
+async fn remove_from_holdings(ticker: &String, quantity: f64, state: &mut AppState) {
     let mut prev_holdings_map: HashMap<Symbol, Holding> = state.get_holdings_map();
     if let Some(existing_holding) = prev_holdings_map.get(ticker) {
         // Update existing holding with new average cost
@@ -187,7 +207,7 @@ fn remove_from_holdings(ticker: &String, quantity: f64, state: &mut AppState) {
                 ticker.clone(),
                 Holding::new(ticker.clone(), new_qty, prev_avg_cost),
             );
-            state.set_holdings_map(prev_holdings_map);
+            state.set_holdings_map(prev_holdings_map).await;
         }
     }
 }
