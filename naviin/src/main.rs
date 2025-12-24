@@ -55,6 +55,9 @@ async fn main() {
         if command == "reset" {
             Storage::default_state(&mut state);
         }
+        if command == "help" {
+            UserInput::display_help();
+        }
         if command == "exit" {
             Storage::save_state(&state);
             break;

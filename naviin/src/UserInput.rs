@@ -49,8 +49,21 @@ pub fn ask_quantity() -> Option<f64> {
                     }
                     Err(_) => println!("Invalid number entered. Please enter a valid quantity."),
                 }
-            },
+            }
             Err(error) => println!("Error reading input: {}. Please try again.", error),
         }
     }
+}
+
+pub fn display_help() {                                                                                                                                                                                     
+    println!("Available Commands:");                                                                                                                                                                        
+    println!("  fund <amount>     - Deposit funds into your account.");
+    println!("  withdraw <amount> - Withdraw funds from your account.");
+    println!("  buy               - Purchase shares of a stock. You will be prompted for ticker and quantity.");
+    println!("  sell              - Sell shares of a stock. You will be prompted for ticker and quantity.");
+    println!("  display           - Show your current cash balance, holdings, and their unrealized P&L.");
+    println!("  price <ticker>    - Get the current market price for a specified stock ticker.");
+    println!("  reset             - Clear all your financial data and start fresh.");
+    println!("  exit              - Save your session and exit the application.");
+    println!("  help              - Display this help message.");
 }
