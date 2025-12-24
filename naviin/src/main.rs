@@ -1,7 +1,7 @@
 use std::io::{self, Write};
 
 // Import everything from the `naviin` library crate
-use naviin::{AppState, Finance, FinanceProvider, Storage, UserInput};
+use naviin::{Finance, FinanceProvider, Storage, UserInput};
 
 #[tokio::main]
 async fn main() {
@@ -40,11 +40,10 @@ async fn main() {
             Finance::withdraw(&mut state, withdraw_amount).await;
             Storage::save_state(&state);
         }
-        if command == "price" {
-            if let Some(ticker) = UserInput::ask_ticker() {
+        if command == "price"
+            && let Some(ticker) = UserInput::ask_ticker() {
                 FinanceProvider::previous_price_close(&ticker, true).await;
             }
-        }
         if command == "buy" {
             Finance::buy(&mut state).await;
             Storage::save_state(&state);
