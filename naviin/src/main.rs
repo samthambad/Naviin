@@ -53,7 +53,7 @@ async fn main() {
             Storage::save_state(&state);
         }
         if command == "reset" {
-            Storage::default_state(&mut state);
+            Storage::default_state();
         }
         if command == "help" {
             UserInput::display_help();
