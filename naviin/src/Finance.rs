@@ -1,31 +1,34 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc, sync::Mutex};
 
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
 use crate::{AppState::AppState, FinanceProvider, UserInput};
 
-pub async fn fund(state: &mut AppState, amount: f64) {
+pub async fn fund(state: &Arc<Mutex<AppState>>, amount: f64) {
     if amount <= 0.0 {
         println!("Invalid amount");
         return;
     }
     // validate payment first
-    state.deposit(amount);
-    state.display().await;
+    // seperate thread not needed since it in run on user input
+    let mut state_guard = state.lock().unwrap();
+    state_guard.deposit(amount);
+    state_guard.display().await;
 }
 
-pub async fn withdraw(state: &mut AppState, amount: f64) {
+pub async fn withdraw(state: &Arc<Mutex<AppState>>, amount: f64) {
+    let mut state_guard = state.lock().unwrap();
     if amount <= 0.0 {
         println!("Invalid amount");
         return;
     }
-    if amount > state.check_balance() {
+    if amount > state_guard.check_balance() {
         println!("Insufficient balance");
         return;
     }
-    state.withdraw(amount);
-    state.display().await;
+    state_guard.withdraw(amount);
+    state_guard.display().await;
 }
 
 pub type Symbol = String;

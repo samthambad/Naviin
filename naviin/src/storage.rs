@@ -9,6 +9,7 @@ pub fn username_checker(username: &String) -> bool {
 }
 
 pub fn save_state(state: &Arc<Mutex<AppState>>) {
+    // No cloning of arc mutex needed here, only required for threads
     let state_guard = state.lock().unwrap();
     match serde_json::to_string_pretty(&*state_guard) {
         Ok(json) => match fs::write(STATE_PATH, json) {

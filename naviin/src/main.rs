@@ -23,7 +23,7 @@ async fn main() {
                 .read_line(&mut fund_amount)
                 .expect("Invalid amount entered");
             let fund_amount: f64 = fund_amount.trim().parse().unwrap();
-            Finance::fund(&mut state, fund_amount).await;
+            Finance::fund(&state, fund_amount).await;
             Storage::save_state(&state);
         }
         if command == "display" {
