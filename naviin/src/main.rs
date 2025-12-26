@@ -27,7 +27,7 @@ async fn main() {
             Storage::save_state(&state);
         }
         if command == "display" {
-            state.display().await;
+            state.lock().unwrap().display().await;
         }
         if command == "withdraw" {
             print!("Amount: ");
@@ -41,9 +41,10 @@ async fn main() {
             Storage::save_state(&state);
         }
         if command == "price"
-            && let Some(ticker) = UserInput::ask_ticker() {
-                FinanceProvider::previous_price_close(&ticker, true).await;
-            }
+            && let Some(ticker) = UserInput::ask_ticker()
+        {
+            FinanceProvider::previous_price_close(&ticker, true).await;
+        }
         if command == "buy" {
             Finance::buy(&mut state).await;
             Storage::save_state(&state);
