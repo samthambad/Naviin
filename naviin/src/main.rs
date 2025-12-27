@@ -1,12 +1,10 @@
-use std::io::{self, Write};
-
 // Import everything from the `naviin` library crate
 use naviin::{Finance, FinanceProvider, Storage, UserInput};
 
 #[tokio::main]
 async fn main() {
     // let mut username = String::new();
-    let mut state = Storage::load_state();
+    let state = Storage::load_state();
     loop {
         print!("What would you like to do today? ");
         io::stdout().flush().unwrap();
@@ -37,7 +35,7 @@ async fn main() {
                 .read_line(&mut withdraw_amount)
                 .expect("Invalid amount entered");
             let withdraw_amount: f64 = withdraw_amount.trim().parse().unwrap();
-            Finance::withdraw(&mut state, withdraw_amount).await;
+            Finance::withdraw(&state, withdraw_amount).await;
             Storage::save_state(&state);
         }
         if command == "price"
@@ -46,11 +44,15 @@ async fn main() {
             FinanceProvider::previous_price_close(&ticker, true).await;
         }
         if command == "buy" {
-            Finance::buy(&mut state).await;
+            Finance::buy(&state).await;
+            Storage::save_state(&state);
+        }
+        if command == "buylimit" {
+            Finance::buy_limit(&state).await;
             Storage::save_state(&state);
         }
         if command == "sell" {
-            Finance::sell(&mut state).await;
+            Finance::sell(&state).await;
             Storage::save_state(&state);
         }
         if command == "reset" {
