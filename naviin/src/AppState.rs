@@ -11,6 +11,7 @@ pub struct AppState {
     cash_balance: f64,
     holdings: HashMap<Symbol, Holding>,
     trades: Vec<Trade>,
+    open_orders: Vec<OpenOrder>
 }
 
 impl Default for AppState {
@@ -25,6 +26,7 @@ impl AppState {
             cash_balance: 0.0,
             holdings: HashMap::new(),
             trades: Vec::new(),
+            open_orders: Vec::new()
         }
     }
 
@@ -80,6 +82,39 @@ impl AppState {
                     curr_price,
                     total_value,
                     pnl
+                );
+            }
+        }
+
+        // Open Orders Display
+        if self.open_orders.is_empty() {
+            println!("\nNO OPEN ORDERS");
+        } else {
+            println!("\nOPEN ORDERS:");
+            println!(
+                "{:<10} {:<6} {:<10} {:<12} {:<20}",
+                "Symbol", "Side", "Qty", "Price/Share", "Timestamp"
+            );
+            println!("------------------------------------------------------------------");
+            for order in &self.open_orders {
+                let datetime =
+                    chrono::DateTime::<chrono::Utc>::from_timestamp(order.get_timestamp(), 0)
+                        .map(|dt| {
+                            dt.with_timezone(&chrono::Local)
+                                .format("%Y-%m-%d %H:%M:%S")
+                                .to_string()
+                        })
+                        .unwrap_or_else(|| order.get_timestamp().to_string());
+                println!(
+                    "{:<10} {:<6} {:<10.2} {:<12.2} {:<20}",
+                    order.get_symbol(),
+                    match order.get_side() {
+                        Side::Buy => "BUY",
+                        Side::Sell => "SELL",
+                    },
+                    order.get_quantity(),
+                    order.get_price_per(),
+                    datetime
                 );
             }
         }
@@ -147,4 +182,26 @@ impl AppState {
             None => 0.0,
         }
     }
+
+    pub fn get_open_holdings(&self) -> Vec<Trade> {
+        self.open_orders.clone()
+    }
+}
+
+async fn monitor_order(state: Arc<Mutex<AppState>>, running: Arc<AtomicBool>) {
+    // create a thread
+    thread::spawn(move || {
+        while running.load(Ordering::Relaxed) {
+            {
+                let mut s = state.lock().unwrap();
+                let open_orders: Vec<Trade> = s.get_open_orders();
+                // pull price
+                // iterate through each open order, pull the price, if it is lesser than
+                FinanceProvider::previous_price_close(, true).await;
+
+            }
+            thread::sleep(Duration::from_secs(10));
+        }
+        println!("Order shutting down")
+    });
 }
