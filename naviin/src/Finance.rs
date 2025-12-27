@@ -147,6 +147,39 @@ pub async fn buy(state: &Arc<Mutex<AppState>>) {
     }
 }
 
+pub async fn buy_limit(state: &Arc<Mutex<AppState>>) {
+    // check if curr_price matches, if so buy and exit
+    let ticker = match UserInput::ask_ticker() {
+        Some(t) => t,
+        None => return,
+    };
+    let quantity: f64 = match UserInput::ask_quantity() {
+        Some(q) => q,
+        None => return,
+    };
+    let limit_price: f64 = match UserInput::ask_price() {
+        Some(q) => q,
+        None => return,
+    };
+    let curr_price: f64 = FinanceProvider::previous_price_close(&ticker, false).await;
+    if curr_price <= limit_price {
+        let total_price: f64 = curr_price * quantity;
+        let mut state_guard = state.lock().unwrap();
+        if state_guard.check_balance() < total_price {
+            println!("Insufficient balance");
+        } else {
+            state_guard.withdraw_purchase(total_price);
+            add_to_holdings(&ticker, quantity, curr_price, state).await;
+            state_guard.add_trade(Trade::buy(ticker, quantity, curr_price));
+        }
+        println!("Buying now at ${limit_price}");
+    }
+    // or add to background thread
+
+}
+
+
+
 pub async fn sell(state: &Arc<Mutex<AppState>>) {
     let ticker = match UserInput::ask_ticker() {
         Some(t) => t,
@@ -223,3 +256,5 @@ async fn remove_from_holdings(ticker: &String, quantity: f64, state: &Arc<Mutex<
         }
     }
 }
+
+pub struct OpenOrder {}
