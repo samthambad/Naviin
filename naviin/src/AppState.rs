@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use chrono;
 use serde::{Deserialize, Serialize};
 
-use crate::Finance::{Holding, Side, Symbol, Trade};
+use crate::Finance::{Holding, LimitOrder, Side, Symbol, Trade};
 use crate::FinanceProvider;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -11,7 +11,7 @@ pub struct AppState {
     cash_balance: f64,
     holdings: HashMap<Symbol, Holding>,
     trades: Vec<Trade>,
-    open_orders: Vec<OpenOrder>
+    open_orders: Vec<LimitOrder>
 }
 
 impl Default for AppState {

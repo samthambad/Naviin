@@ -257,4 +257,8 @@ async fn remove_from_holdings(ticker: &String, quantity: f64, state: &Arc<Mutex<
     }
 }
 
-pub struct OpenOrder {}
+pub struct LimitOrder {
+    symbol: Symbol,
+    quantity: f64,
+    price_per: f64,
+}
