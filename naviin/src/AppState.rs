@@ -1,9 +1,12 @@
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc};
 
 use chrono;
 use serde::{Deserialize, Serialize};
+use tokio::sync::Mutex;
 
-use crate::Finance::{Holding, LimitOrder, Side, Symbol, Trade};
+use crate::Finance::{self, Holding, LimitOrder, Side, Symbol, Trade};
 use crate::FinanceProvider;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -183,24 +186,29 @@ impl AppState {
         }
     }
 
-    pub fn get_open_holdings(&self) -> Vec<Trade> {
+    pub fn get_open_orders(&self) -> Vec<LimitOrder> {
         self.open_orders.clone()
     }
 }
 
 async fn monitor_order(state: Arc<Mutex<AppState>>, running: Arc<AtomicBool>) {
     // create a thread
-    thread::spawn(move || {
+    tokio::spawn(async move {
         while running.load(Ordering::Relaxed) {
             {
-                let mut s = state.lock().unwrap();
-                let open_orders: Vec<Trade> = s.get_open_orders();
+                let mut s = state.lock().await;
+                let open_orders: Vec<LimitOrder> = s.get_open_orders();
                 // pull price
+                for o in open_orders {
+                    if o.get_price_per() <= FinanceProvider::previous_price_close(o.get_symbol(), false).await {
+                        // buy order at limit price    
+                        Finance::buy_limit(&state);
+                    }
+                }
                 // iterate through each open order, pull the price, if it is lesser than
-                FinanceProvider::previous_price_close(, true).await;
 
             }
-            thread::sleep(Duration::from_secs(10));
+            tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
         }
         println!("Order shutting down")
     });

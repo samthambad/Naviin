@@ -1,5 +1,5 @@
 use std::{collections::HashMap, sync::Arc, sync::Mutex};
-
+use tokio::sync::Mutex as TokioMutex;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
@@ -147,7 +147,8 @@ pub async fn buy(state: &Arc<Mutex<AppState>>) {
     }
 }
 
-pub async fn buy_limit(state: &Arc<Mutex<AppState>>) {
+//  is good till cancelled
+pub async fn buy_limit(state: &Arc<TokioMutex<AppState>>) {
     // check if curr_price matches, if so buy and exit
     let ticker = match UserInput::ask_ticker() {
         Some(t) => t,
@@ -162,6 +163,7 @@ pub async fn buy_limit(state: &Arc<Mutex<AppState>>) {
         None => return,
     };
     let curr_price: f64 = FinanceProvider::previous_price_close(&ticker, false).await;
+    // check the open orders
     if curr_price <= limit_price {
         let total_price: f64 = curr_price * quantity;
         let mut state_guard = state.lock().unwrap();
@@ -174,7 +176,7 @@ pub async fn buy_limit(state: &Arc<Mutex<AppState>>) {
         }
         println!("Buying now at ${limit_price}");
     }
-    // or add to background thread
+    // add t
 
 }
 
@@ -257,8 +259,18 @@ async fn remove_from_holdings(ticker: &String, quantity: f64, state: &Arc<Mutex<
     }
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LimitOrder {
     symbol: Symbol,
     quantity: f64,
     price_per: f64,
+}
+
+impl LimitOrder {
+    pub fn get_symbol(&self) -> &Symbol {
+        &self.symbol
+    }
+    pub fn get_price_per(&self) -> f64 {
+        self.price_per
+    }
 }
