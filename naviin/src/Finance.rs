@@ -125,16 +125,16 @@ impl Trade {
 }
 
 pub async fn buy(state: &Arc<Mutex<AppState>>) {
-    let ticker = match UserInput::ask_ticker() {
+    let symbol = match UserInput::ask_ticker() {
         Some(t) => t,
         None => return,
     };
-    let quantity: f64 = match UserInput::ask_quantity() {
+    let purchase_qty: f64 = match UserInput::ask_quantity() {
         Some(q) => q,
         None => return,
     };
-    let curr_price: f64 = FinanceProvider::previous_price_close(&ticker, false).await;
-    let total_price: f64 = curr_price * quantity;
+    let curr_price: f64 = FinanceProvider::previous_price_close(&symbol, false).await;
+    let total_price: f64 = curr_price * purchase_qty;
 
     let mut state_guard = state.lock().unwrap();
     println!("The total price is: {total_price}");
@@ -142,8 +142,8 @@ pub async fn buy(state: &Arc<Mutex<AppState>>) {
         println!("Insufficient balance");
     } else {
         state_guard.withdraw_purchase(total_price);
-        add_to_holdings(&ticker, quantity, curr_price, state).await;
-        state_guard.add_trade(Trade::buy(ticker, quantity, curr_price));
+        add_to_holdings(&symbol, purchase_qty, curr_price, state).await;
+        state_guard.add_trade(Trade::buy(symbol, purchase_qty, curr_price));
     }
 }
 
@@ -169,10 +169,25 @@ pub async fn create_limit_order() -> Option<LimitOrder> {
 }
 
 //  is good till cancelled
-pub async fn buy_limit(order: &LimitOrder) {
+pub async fn buy_limit(state: &Arc<Mutex<AppState>>, order: &LimitOrder) {
 
-    // check if curr_price matches, if so buy and exit
-    let curr_price: f64 = FinanceProvider::previous_price_close(&ticker, false).await;
+    let mut state_guard = state.lock().unwrap();
+    let symbol = order.get_symbol().clone();
+    let limit_price = order.get_price_per();
+    let purchase_qty = order.get_qty();
+    let curr_cash = state_guard.check_balance();
+    let total_purchase_value = limit_price * purchase_qty;
+    let curr_price: f64 = FinanceProvider::previous_price_close(&symbol, false).await;
+    if curr_price <= limit_price {
+        if total_purchase_value > curr_cash {
+            println!("Insufficient balance");
+            return
+        }
+        state_guard.withdraw_purchase(total_purchase_value);
+        add_to_holdings(&symbol, purchase_qty, limit_price, state).await;
+        state_guard.add_trade(Trade::buy(symbol, purchase_qty, limit_price));
+        // change the state's open orders
+    }
 }
 
 
@@ -267,5 +282,8 @@ impl LimitOrder {
     }
     pub fn get_price_per(&self) -> f64 {
         self.price_per
+    }
+    pub fn get_qty(&self) -> f64{
+        self.quantity
     }
 }

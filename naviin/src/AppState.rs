@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::Duration;
 
 use chrono;
 use serde::{Deserialize, Serialize};
@@ -197,22 +199,21 @@ impl AppState {
 
 async fn monitor_order(state: Arc<Mutex<AppState>>, running: Arc<AtomicBool>) {
     // create a thread
-    tokio::spawn(async move {
+    thread::spawn(move || {
+        let rt = tokio::runtime::Runtime::new().unwrap();
         while running.load(Ordering::Relaxed) {
             {
                 let mut s = state.lock().unwrap();
                 let open_orders: Vec<LimitOrder> = s.get_open_orders();
                 // pull price
                 for o in open_orders {
-                    if o.get_price_per() <= FinanceProvider::previous_price_close(o.get_symbol(), false).await {
+                    rt.block_on(async {
                         // buy order at limit price
                         Finance::buy_limit(&o);
-                    }
+                    });
                 }
-                // iterate through each open order, pull the price, if it is lesser than
-
             }
-            tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+            thread::sleep(Duration::from_secs(10))
         }
         println!("Order shutting down")
     });
