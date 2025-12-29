@@ -189,6 +189,11 @@ impl AppState {
     pub fn get_open_orders(&self) -> Vec<LimitOrder> {
         self.open_orders.clone()
     }
+    
+    pub fn add_to_open_order_limit(&mut self, new_order: LimitOrder) {
+        self.open_orders.push(new_order);
+    }
+
 }
 
 async fn monitor_order(state: Arc<Mutex<AppState>>, running: Arc<AtomicBool>) {
@@ -201,8 +206,8 @@ async fn monitor_order(state: Arc<Mutex<AppState>>, running: Arc<AtomicBool>) {
                 // pull price
                 for o in open_orders {
                     if o.get_price_per() <= FinanceProvider::previous_price_close(o.get_symbol(), false).await {
-                        // buy order at limit price    
-                        Finance::buy_limit(&state);
+                        // buy order at limit price
+                        Finance::buy_limit(&o);
                     }
                 }
                 // iterate through each open order, pull the price, if it is lesser than

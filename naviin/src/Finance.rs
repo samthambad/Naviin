@@ -147,37 +147,32 @@ pub async fn buy(state: &Arc<Mutex<AppState>>) {
     }
 }
 
-//  is good till cancelled
-pub async fn buy_limit(state: &Arc<TokioMutex<AppState>>) {
-    // check if curr_price matches, if so buy and exit
+pub async fn create_limit_order() -> Option<LimitOrder> {
     let ticker = match UserInput::ask_ticker() {
         Some(t) => t,
-        None => return,
+        None => return None,
     };
     let quantity: f64 = match UserInput::ask_quantity() {
         Some(q) => q,
-        None => return,
+        None => return None,
     };
     let limit_price: f64 = match UserInput::ask_price() {
         Some(q) => q,
-        None => return,
+        None => return None,
     };
-    let curr_price: f64 = FinanceProvider::previous_price_close(&ticker, false).await;
-    // check the open orders
-    if curr_price <= limit_price {
-        let total_price: f64 = curr_price * quantity;
-        let mut state_guard = state.lock().unwrap();
-        if state_guard.check_balance() < total_price {
-            println!("Insufficient balance");
-        } else {
-            state_guard.withdraw_purchase(total_price);
-            add_to_holdings(&ticker, quantity, curr_price, state).await;
-            state_guard.add_trade(Trade::buy(ticker, quantity, curr_price));
-        }
-        println!("Buying now at ${limit_price}");
-    }
-    // add t
+    // create new 
+    Some(LimitOrder {
+        symbol: ticker.clone(),
+        quantity,
+        price_per: limit_price,
+    })
+}
 
+//  is good till cancelled
+pub async fn buy_limit(order: &LimitOrder) {
+
+    // check if curr_price matches, if so buy and exit
+    let curr_price: f64 = FinanceProvider::previous_price_close(&ticker, false).await;
 }
 
 
