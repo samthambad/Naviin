@@ -48,6 +48,13 @@ async fn main() {
             Storage::save_state(&state);
         }
         if command == "buylimit" {
+            match new_limit_order = Finance::create_limit_order() {
+                Some(t) => t,
+                None => {
+                    println!("Trouble creating limit order!");
+                    return
+                },
+            }
             Finance::buy_limit(&state).await;
             Storage::save_state(&state);
         }
