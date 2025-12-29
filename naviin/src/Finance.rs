@@ -142,7 +142,7 @@ pub async fn buy(state: &Arc<Mutex<AppState>>) {
         println!("Insufficient balance");
     } else {
         state_guard.withdraw_purchase(total_price);
-        add_to_holdings(&symbol, purchase_qty, curr_price, state).await;
+        add_to_holdings(&symbol, purchase_qty, curr_price, &mut state_guard).await;
         state_guard.add_trade(Trade::buy(symbol, purchase_qty, curr_price));
     }
 }
@@ -169,25 +169,25 @@ pub async fn create_limit_order() -> Option<LimitOrder> {
 }
 
 //  is good till cancelled
-pub async fn buy_limit(state: &Arc<Mutex<AppState>>, order: &LimitOrder) {
+pub async fn buy_limit(state: &mut AppState, order: &LimitOrder) -> bool {
 
-    let mut state_guard = state.lock().unwrap();
     let symbol = order.get_symbol().clone();
     let limit_price = order.get_price_per();
     let purchase_qty = order.get_qty();
-    let curr_cash = state_guard.check_balance();
+    let curr_cash = state.check_balance();
     let total_purchase_value = limit_price * purchase_qty;
     let curr_price: f64 = FinanceProvider::previous_price_close(&symbol, false).await;
     if curr_price <= limit_price {
         if total_purchase_value > curr_cash {
             println!("Insufficient balance");
-            return
+            return false;
         }
-        state_guard.withdraw_purchase(total_purchase_value);
+        state.withdraw_purchase(total_purchase_value);
         add_to_holdings(&symbol, purchase_qty, limit_price, state).await;
-        state_guard.add_trade(Trade::buy(symbol, purchase_qty, limit_price));
-        // change the state's open orders
+        state.add_trade(Trade::buy(symbol, purchase_qty, limit_price));
+        return true;
     }
+    false
 }
 
 
@@ -221,10 +221,9 @@ async fn add_to_holdings(
     ticker: &String,
     quantity: f64,
     price_per: f64,
-    state: &Arc<Mutex<AppState>>,
+    state: &mut AppState,
 ) {
-    let mut state_guard = state.lock().unwrap();
-    let mut prev_holdings_map: HashMap<Symbol, Holding> = state_guard.get_holdings_map();
+    let mut prev_holdings_map: HashMap<Symbol, Holding> = state.get_holdings_map();
 
     // Use HashMap's get method to check if holding exists
     if let Some(existing_holding) = prev_holdings_map.get(ticker) {
@@ -246,7 +245,7 @@ async fn add_to_holdings(
             Holding::new(ticker.clone(), quantity, price_per),
         );
     }
-    state_guard.set_holdings_map(prev_holdings_map).await;
+    state.set_holdings_map(prev_holdings_map).await;
 }
 
 async fn remove_from_holdings(ticker: &String, quantity: f64, state: &Arc<Mutex<AppState>>) {

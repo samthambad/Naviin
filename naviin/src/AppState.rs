@@ -195,6 +195,14 @@ impl AppState {
         self.open_orders.push(new_order);
     }
 
+    pub fn remove_from_open_orders(&mut self, order_to_remove: LimitOrder) {
+        self.open_orders.retain(|order| {
+            !(order.get_symbol() == order_to_remove.get_symbol()
+              && order.get_price_per() == order_to_remove.get_price_per()
+              && order.get_qty() == order_to_remove.get_qty())
+        });
+    }
+
 }
 
 async fn monitor_order(state: Arc<Mutex<AppState>>, running: Arc<AtomicBool>) {
@@ -203,14 +211,21 @@ async fn monitor_order(state: Arc<Mutex<AppState>>, running: Arc<AtomicBool>) {
         let rt = tokio::runtime::Runtime::new().unwrap();
         while running.load(Ordering::Relaxed) {
             {
-                let mut s = state.lock().unwrap();
-                let open_orders: Vec<LimitOrder> = s.get_open_orders();
+                let mut state_guard = state.lock().unwrap();
+                let open_orders: Vec<LimitOrder> = state_guard.get_open_orders();
                 // pull price
+                let mut orders_executed : Vec<LimitOrder> = Vec::new();
                 for o in open_orders {
                     rt.block_on(async {
                         // buy order at limit price
-                        Finance::buy_limit(&o);
+                        if Finance::buy_limit(&mut state_guard, &o).await {
+                            // remove that one from the list
+                            orders_executed.push(o);
+                        }
                     });
+                }
+                for o in orders_executed {
+                    state_guard.remove_from_open_orders(o);
                 }
             }
             thread::sleep(Duration::from_secs(10))
