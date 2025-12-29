@@ -1,5 +1,5 @@
 // Import everything from the `naviin` library crate
-use naviin::{Finance, FinanceProvider, Storage, UserInput};
+use naviin::{AppState::AppState, Finance, FinanceProvider, Storage, UserInput};
 
 #[tokio::main]
 async fn main() {
@@ -55,7 +55,8 @@ async fn main() {
                     return
                 },
             }
-            Finance::buy_limit(&state).await;
+            let mut state_guard = state.lock().unwrap();
+            state_guard.add_open_order(new_limit_order);
             Storage::save_state(&state);
         }
         if command == "sell" {

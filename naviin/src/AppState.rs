@@ -1,10 +1,9 @@
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc};
+use std::sync::{Arc, Mutex};
 
 use chrono;
 use serde::{Deserialize, Serialize};
-use tokio::sync::Mutex;
 
 use crate::Finance::{self, Holding, LimitOrder, Side, Symbol, Trade};
 use crate::FinanceProvider;
@@ -190,7 +189,7 @@ impl AppState {
         self.open_orders.clone()
     }
     
-    pub fn add_to_open_order_limit(&mut self, new_order: LimitOrder) {
+    pub fn add_open_order(&mut self, new_order: LimitOrder) {
         self.open_orders.push(new_order);
     }
 
@@ -201,7 +200,7 @@ async fn monitor_order(state: Arc<Mutex<AppState>>, running: Arc<AtomicBool>) {
     tokio::spawn(async move {
         while running.load(Ordering::Relaxed) {
             {
-                let mut s = state.lock().await;
+                let mut s = state.lock().unwrap();
                 let open_orders: Vec<LimitOrder> = s.get_open_orders();
                 // pull price
                 for o in open_orders {
