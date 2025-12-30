@@ -116,7 +116,7 @@ impl AppState {
                         Side::Buy => "BUY",
                         Side::Sell => "SELL",
                     },
-                    order.get_quantity(),
+                    order.get_qty(),
                     order.get_price_per(),
                     datetime
                 );
@@ -205,7 +205,7 @@ impl AppState {
 
 }
 
-async fn monitor_order(state: Arc<Mutex<AppState>>, running: Arc<AtomicBool>) {
+pub async fn monitor_order(state: Arc<Mutex<AppState>>, running: Arc<AtomicBool>) {
     // create a thread
     thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().unwrap();
@@ -216,6 +216,7 @@ async fn monitor_order(state: Arc<Mutex<AppState>>, running: Arc<AtomicBool>) {
                 // pull price
                 let mut orders_executed : Vec<LimitOrder> = Vec::new();
                 for o in open_orders {
+                    println!("running background price checking");
                     rt.block_on(async {
                         // buy order at limit price
                         if Finance::buy_limit(&mut state_guard, &o).await {
