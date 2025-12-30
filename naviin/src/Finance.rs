@@ -1,5 +1,4 @@
 use std::{collections::HashMap, sync::Arc, sync::Mutex};
-use tokio::sync::Mutex as TokioMutex;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
@@ -11,7 +10,7 @@ pub async fn fund(state: &Arc<Mutex<AppState>>, amount: f64) {
         return;
     }
     // validate payment first
-    // seperate thread not needed since it in run on user input
+    // separate thread not needed since it in run on user input
     let mut state_guard = state.lock().unwrap();
     state_guard.deposit(amount);
     state_guard.display().await;
@@ -165,6 +164,8 @@ pub async fn create_limit_order() -> Option<LimitOrder> {
         symbol: ticker.clone(),
         quantity,
         price_per: limit_price,
+        side: Side::Buy, // for now its only Buy
+        timestamp: Utc::now().timestamp(),
     })
 }
 
@@ -273,6 +274,8 @@ pub struct LimitOrder {
     symbol: Symbol,
     quantity: f64,
     price_per: f64,
+    side: Side,
+    timestamp: i64,
 }
 
 impl LimitOrder {
@@ -284,5 +287,11 @@ impl LimitOrder {
     }
     pub fn get_qty(&self) -> f64{
         self.quantity
+    }
+    pub fn get_timestamp(&self) -> i64 {
+        self.timestamp
+    }
+    pub fn get_side(&self) -> &Side {
+        &self.side
     }
 }
