@@ -1,10 +1,16 @@
+use std::io;
+use std::io::Write;
+use std::sync::{Arc, atomic::AtomicBool};
 // Import everything from the `naviin` library crate
-use naviin::{AppState::AppState, Finance, FinanceProvider, Storage, UserInput};
+use naviin::{AppState::monitor_order, Finance, FinanceProvider, Storage, UserInput};
 
 #[tokio::main]
 async fn main() {
     // let mut username = String::new();
     let state = Storage::load_state();
+    let running = Arc::new(AtomicBool::new(true));
+    let running_clone = running.clone();
+    monitor_order(state.clone(), running_clone).await;
     loop {
         print!("What would you like to do today? ");
         io::stdout().flush().unwrap();
@@ -48,16 +54,12 @@ async fn main() {
             Storage::save_state(&state);
         }
         if command == "buylimit" {
-            match new_limit_order = Finance::create_limit_order() {
-                Some(t) => t,
-                None => {
-                    println!("Trouble creating limit order!");
-                    return
-                },
+            let new_limit_order = Finance::create_limit_order().await;
+            if let Some(order) = new_limit_order {
+                let mut state_guard = state.lock().unwrap();
+                state_guard.add_open_order(order);
+                Storage::save_state(&state);
             }
-            let mut state_guard = state.lock().unwrap();
-            state_guard.add_open_order(new_limit_order);
-            Storage::save_state(&state);
         }
         if command == "sell" {
             Finance::sell(&state).await;
