@@ -56,9 +56,12 @@ async fn main() {
         if command == "buylimit" {
             let new_limit_order = Finance::create_limit_order().await;
             if let Some(order) = new_limit_order {
-                let mut state_guard = state.lock().unwrap();
-                state_guard.add_open_order(order);
+                {
+                    let mut state_guard = state.lock().unwrap();
+                    state_guard.add_open_order(order);
+                }
                 Storage::save_state(&state);
+                println!("Open order added");
             }
         }
         if command == "sell" {
