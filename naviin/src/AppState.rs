@@ -216,7 +216,6 @@ pub async fn monitor_order(state: Arc<Mutex<AppState>>, running: Arc<AtomicBool>
                 // pull price
                 let mut orders_executed : Vec<LimitOrder> = Vec::new();
                 for o in open_orders {
-                    println!("running background price checking");
                     rt.block_on(async {
                         // buy order at limit price
                         if Finance::buy_limit(&mut state_guard, &o).await {
