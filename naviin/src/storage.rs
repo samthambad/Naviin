@@ -37,7 +37,10 @@ pub fn load_state() -> Arc<Mutex<AppState>> {
     }
 }
 
-pub fn default_state() {
-    let state = Arc::new(Mutex::new(AppState::new()));
-    save_state(&state);
+pub fn default_state(state: &Arc<Mutex<AppState>>) {
+    {
+        let mut state_guard = state.lock().unwrap();
+        *state_guard = AppState::new();
+    }
+    save_state(state);
 }

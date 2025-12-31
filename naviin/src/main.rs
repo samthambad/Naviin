@@ -67,9 +67,10 @@ async fn main() {
                 Finance::sell(&state).await;
                 Storage::save_state(&state);
             },
-            "reset" => Storage::default_state(), // TODO: not working
+            "reset" => Storage::default_state(&state),
             "help" => UserInput::display_help(),
             "exit" => {
+                running.store(false, std::sync::atomic::Ordering::Relaxed);
                 Storage::save_state(&state);
                 break;
             },
