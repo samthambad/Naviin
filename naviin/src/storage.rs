@@ -1,5 +1,5 @@
 use crate::AppState::AppState;
-use std::fs;
+use std::{fs, sync::Arc, sync::Mutex};
 
 const STATE_PATH: &str = "state.json";
 
@@ -8,8 +8,10 @@ pub fn username_checker(username: &String) -> bool {
     true
 }
 
-pub fn save_state(state: &AppState) {
-    match serde_json::to_string_pretty(state) {
+pub fn save_state(state: &Arc<Mutex<AppState>>) {
+    // No cloning of arc mutex needed here, only required for threads
+    let state_guard = state.lock().unwrap();
+    match serde_json::to_string_pretty(&*state_guard) {
         Ok(json) => match fs::write(STATE_PATH, json) {
             Ok(_) => (),
             Err(err) => eprintln!("Failed to save state: {err:?}"),
@@ -18,24 +20,27 @@ pub fn save_state(state: &AppState) {
     }
 }
 
-pub fn load_state() -> AppState {
+pub fn load_state() -> Arc<Mutex<AppState>> {
     // Try to read file
     let data = match fs::read_to_string("state.json") {
         Ok(s) => s,
-        Err(_) => return AppState::new(),
+        Err(_) => return Arc::new(Mutex::new(AppState::new())),
     };
 
     // Try to parse JSON
     match serde_json::from_str(&data) {
         Ok(s) => {
             println!("Found a save file, restoring...");
-            s
+            Arc::new(Mutex::new(s))
         }
-        Err(_) => AppState::new(),
+        Err(_) => Arc::new(Mutex::new(AppState::new())),
     }
 }
 
-pub fn default_state(state: &mut AppState) {
-    *state = AppState::new();
+pub fn default_state(state: &Arc<Mutex<AppState>>) {
+    {
+        let mut state_guard = state.lock().unwrap();
+        *state_guard = AppState::new();
+    }
     save_state(state);
 }
