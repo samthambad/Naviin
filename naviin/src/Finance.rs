@@ -176,16 +176,15 @@ pub async fn buy_limit(state: &mut AppState, order: &LimitOrder) -> bool {
     let limit_price = order.get_price_per();
     let purchase_qty = order.get_qty();
     let curr_cash = state.check_balance();
-    let total_purchase_value = limit_price * purchase_qty;
     let curr_price: f64 = FinanceProvider::previous_price_close(&symbol, false).await;
+    let total_purchase_value = curr_price * purchase_qty;
     if curr_price <= limit_price {
         if total_purchase_value > curr_cash {
-            println!("Insufficient balance");
             return false;
         }
         state.withdraw_purchase(total_purchase_value);
-        add_to_holdings(&symbol, purchase_qty, limit_price, state).await;
-        state.add_trade(Trade::buy(symbol, purchase_qty, limit_price));
+        add_to_holdings(&symbol, purchase_qty, curr_price, state).await;
+        state.add_trade(Trade::buy(symbol, purchase_qty, curr_price));
         return true;
     }
     false
