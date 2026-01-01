@@ -278,6 +278,16 @@ pub struct LimitOrder {
 }
 
 impl LimitOrder {
+    pub fn new(symbol: Symbol, quantity: f64, price_per: f64, side: Side) -> Self {
+        Self {
+            symbol,
+            quantity,
+            price_per,
+            side,
+            timestamp: Utc::now().timestamp(),
+        }
+    }
+
     pub fn get_symbol(&self) -> &Symbol {
         &self.symbol
     }
