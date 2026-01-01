@@ -67,6 +67,9 @@ async fn main() {
                 Finance::sell(&state).await;
                 Storage::save_state(&state);
             },
+            "selllimit" => {
+                
+            },
             "reset" => Storage::default_state(&state),
             "help" => UserInput::display_help(),
             "exit" => {
