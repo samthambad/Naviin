@@ -1,9 +1,13 @@
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::Duration;
 
 use chrono;
 use serde::{Deserialize, Serialize};
 
-use crate::Finance::{Holding, Side, Symbol, Trade};
+use crate::Finance::{self, Holding, LimitOrder, Side, Symbol, Trade};
 use crate::FinanceProvider;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -11,6 +15,7 @@ pub struct AppState {
     cash_balance: f64,
     holdings: HashMap<Symbol, Holding>,
     trades: Vec<Trade>,
+    open_orders: Vec<LimitOrder>
 }
 
 impl Default for AppState {
@@ -25,6 +30,7 @@ impl AppState {
             cash_balance: 0.0,
             holdings: HashMap::new(),
             trades: Vec::new(),
+            open_orders: Vec::new()
         }
     }
 
@@ -80,6 +86,39 @@ impl AppState {
                     curr_price,
                     total_value,
                     pnl
+                );
+            }
+        }
+
+        // Open Orders Display
+        if self.open_orders.is_empty() {
+            println!("\nNO OPEN ORDERS");
+        } else {
+            println!("\nOPEN ORDERS:");
+            println!(
+                "{:<10} {:<6} {:<10} {:<12} {:<20}",
+                "Symbol", "Side", "Qty", "Price/Share", "Timestamp"
+            );
+            println!("------------------------------------------------------------------");
+            for order in &self.open_orders {
+                let datetime =
+                    chrono::DateTime::<chrono::Utc>::from_timestamp(order.get_timestamp(), 0)
+                        .map(|dt| {
+                            dt.with_timezone(&chrono::Local)
+                                .format("%Y-%m-%d %H:%M:%S")
+                                .to_string()
+                        })
+                        .unwrap_or_else(|| order.get_timestamp().to_string());
+                println!(
+                    "{:<10} {:<6} {:<10.2} {:<12.2} {:<20}",
+                    order.get_symbol(),
+                    match order.get_side() {
+                        Side::Buy => "BUY",
+                        Side::Sell => "SELL",
+                    },
+                    order.get_qty(),
+                    order.get_price_per(),
+                    datetime
                 );
             }
         }
@@ -147,4 +186,50 @@ impl AppState {
             None => 0.0,
         }
     }
+
+    pub fn get_open_orders(&self) -> Vec<LimitOrder> {
+        self.open_orders.clone()
+    }
+    
+    pub fn add_open_order(&mut self, new_order: LimitOrder) {
+        self.open_orders.push(new_order);
+    }
+
+    pub fn remove_from_open_orders(&mut self, order_to_remove: LimitOrder) {
+        self.open_orders.retain(|order| {
+            !(order.get_symbol() == order_to_remove.get_symbol()
+              && order.get_price_per() == order_to_remove.get_price_per()
+              && order.get_qty() == order_to_remove.get_qty())
+        });
+    }
+
+}
+
+pub async fn monitor_order(state: Arc<Mutex<AppState>>, running: Arc<AtomicBool>) {
+    // create a thread
+    thread::spawn(move || {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        while running.load(Ordering::Relaxed) {
+            {
+                let mut state_guard = state.lock().unwrap();
+                let open_orders: Vec<LimitOrder> = state_guard.get_open_orders();
+                // pull price
+                let mut orders_executed : Vec<LimitOrder> = Vec::new();
+                for o in open_orders {
+                    rt.block_on(async {
+                        // buy order at limit price
+                        if Finance::buy_limit(&mut state_guard, &o).await {
+                            // remove that one from the list
+                            orders_executed.push(o);
+                        }
+                    });
+                }
+                for o in orders_executed {
+                    state_guard.remove_from_open_orders(o);
+                }
+            }
+            thread::sleep(Duration::from_secs(10))
+        }
+        println!("Order shutting down")
+    });
 }
