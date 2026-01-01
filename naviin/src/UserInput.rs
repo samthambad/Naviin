@@ -61,6 +61,7 @@ pub fn display_help() {
     println!("  fund <amount>     - Deposit funds into your account.");
     println!("  withdraw <amount> - Withdraw funds from your account.");
     println!("  buy               - Purchase shares of a stock. You will be prompted for ticker and quantity.");
+    println!("  buylimit          - Purchase shares of a stock <= your limit price, good till cancelled.");
     println!("  sell              - Sell shares of a stock. You will be prompted for ticker and quantity.");
     println!("  display           - Show your current cash balance, holdings, and their unrealized P&L.");
     println!("  price <ticker>    - Get the current market price for a specified stock ticker.");
