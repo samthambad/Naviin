@@ -1,8 +1,8 @@
 # Naviin
 
-**A high-performance, Rust-powered portfolio management CLI with ambitions to evolve into a decentralized trading platform leveraging cryptocurrency as an intermediary for secure, scalable trading of diverse real-world financial products in DeFi.**
+**A high-performance, Rust-powered CLI for portfolio tracking and simulated trading—starting as an accessible tool for technical beginners and evolving toward a broader audience as intuitive keybinds make complex operations as simple as typing.**
 
-Naviin is an asynchronous command-line tool for tracking digital assets, managing virtual portfolios, and simulating trades with real-time market data. Built with Rust's emphasis on speed, memory safety, and concurrency, it serves as the foundation for a long-term vision: a fully decentralized trading platform supporting a wide array of financial instruments beyond cryptocurrencies.
+Naviin delivers real-time multi-asset monitoring (equities, ETFs, FX, commodities), virtual trade execution, and concurrency-safe state management. Built for speed and safety in Rust, it lays the foundation for future expansion into advanced strategy development and DeFi/RWA integration.
 
 ## Current Features
 
