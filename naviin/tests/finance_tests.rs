@@ -1,5 +1,5 @@
 use naviin::AppState::AppState;
-use naviin::Finance::{Holding, Trade, LimitOrder, Side};
+use naviin::Finance::{Holding, Trade, OpenOrder, Side};
 
 // ===== Holding Tests =====
 
@@ -84,7 +84,7 @@ fn test_trade_with_fractional_shares() {
 
 #[test]
 fn test_limit_order_creation() {
-    let order = LimitOrder::new("AAPL".to_string(), 10.0, 145.0, Side::Buy);
+    let order = OpenOrder::new("AAPL".to_string(), 10.0, 145.0, Side::Buy);
     
     assert_eq!(order.get_symbol(), "AAPL");
     assert_eq!(order.get_qty(), 10.0);
@@ -98,7 +98,7 @@ fn test_limit_order_creation() {
 
 #[test]
 fn test_limit_order_sell() {
-    let order = LimitOrder::new("GOOGL".to_string(), 5.0, 2900.0, Side::Sell);
+    let order = OpenOrder::new("GOOGL".to_string(), 5.0, 2900.0, Side::Sell);
     
     assert_eq!(order.get_symbol(), "GOOGL");
     
@@ -110,7 +110,7 @@ fn test_limit_order_sell() {
 
 #[test]
 fn test_limit_order_getters() {
-    let order = LimitOrder::new("MSFT".to_string(), 20.0, 350.0, Side::Buy);
+    let order = OpenOrder::new("MSFT".to_string(), 20.0, 350.0, Side::Buy);
     
     assert_eq!(order.get_symbol(), "MSFT");
     assert_eq!(order.get_qty(), 20.0);
@@ -120,7 +120,7 @@ fn test_limit_order_getters() {
 
 #[test]
 fn test_limit_order_timestamp_is_recent() {
-    let order = LimitOrder::new("AAPL".to_string(), 10.0, 150.0, Side::Buy);
+    let order = OpenOrder::new("AAPL".to_string(), 10.0, 150.0, Side::Buy);
     
     let now = chrono::Utc::now().timestamp();
     assert!(order.get_timestamp() <= now);

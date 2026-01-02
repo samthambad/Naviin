@@ -146,7 +146,7 @@ pub async fn buy(state: &Arc<Mutex<AppState>>) {
     }
 }
 
-pub async fn create_limit_order(ifBuy: bool) -> Option<LimitOrder> {
+pub async fn create_limit_order(ifBuy: bool) -> Option<OpenOrder> {
     let ticker = match UserInput::ask_ticker() {
         Some(t) => t,
         None => return None,
@@ -160,7 +160,7 @@ pub async fn create_limit_order(ifBuy: bool) -> Option<LimitOrder> {
         None => return None,
     };
     if ifBuy {
-        Some(LimitOrder {
+        Some(OpenOrder {
             symbol: ticker.clone(),
             quantity,
             price_per: limit_price,
@@ -168,7 +168,7 @@ pub async fn create_limit_order(ifBuy: bool) -> Option<LimitOrder> {
             timestamp: Utc::now().timestamp(),
         })
     } else {
-        Some(LimitOrder {
+        Some(OpenOrder {
             symbol: ticker.clone(),
             quantity,
             price_per: limit_price,
@@ -179,7 +179,7 @@ pub async fn create_limit_order(ifBuy: bool) -> Option<LimitOrder> {
 }
 
 //  is good till cancelled
-pub async fn buy_limit(state: &mut AppState, order: &LimitOrder) -> bool {
+pub async fn buy_limit(state: &mut AppState, order: &OpenOrder) -> bool {
 
     let symbol = order.get_symbol().clone();
     let limit_price = order.get_price_per();
@@ -199,7 +199,7 @@ pub async fn buy_limit(state: &mut AppState, order: &LimitOrder) -> bool {
     false
 }
 
-pub async fn sell_stop_loss(state: &mut AppState, order: &LimitOrder) -> bool {
+pub async fn sell_stop_loss(state: &mut AppState, order: &OpenOrder) -> bool {
     let symbol = order.get_symbol().clone();
     let limit_price = order.get_price_per();
     let sale_qty = order.get_qty();
@@ -294,7 +294,7 @@ async fn remove_from_holdings(ticker: &String, quantity: f64, state: &mut AppSta
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct LimitOrder {
+pub struct OpenOrder {
     symbol: Symbol,
     quantity: f64,
     price_per: f64,
@@ -302,7 +302,7 @@ pub struct LimitOrder {
     timestamp: i64,
 }
 
-impl LimitOrder {
+impl OpenOrder {
     pub fn new(symbol: Symbol, quantity: f64, price_per: f64, side: Side) -> Self {
         Self {
             symbol,

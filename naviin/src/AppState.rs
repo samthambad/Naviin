@@ -7,7 +7,7 @@ use std::time::Duration;
 use chrono;
 use serde::{Deserialize, Serialize};
 
-use crate::Finance::{self, Holding, LimitOrder, Side, Symbol, Trade};
+use crate::Finance::{self, Holding, OpenOrder, Side, Symbol, Trade};
 use crate::FinanceProvider;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -15,7 +15,7 @@ pub struct AppState {
     cash_balance: f64,
     holdings: HashMap<Symbol, Holding>,
     trades: Vec<Trade>,
-    open_orders: Vec<LimitOrder>,
+    open_orders: Vec<OpenOrder>,
 }
 
 impl Default for AppState {
@@ -187,15 +187,23 @@ impl AppState {
         }
     }
 
-    pub fn get_open_orders(&self) -> Vec<LimitOrder> {
+    pub fn get_open_orders(&self) -> Vec<OpenOrder> {
         self.open_orders.clone()
     }
 
-    pub fn add_open_order(&mut self, new_order: LimitOrder) {
-        if matches!(new_order.get_side(), Side::Sell)
-            && self.get_ticker_holdings_qty(&new_order.get_symbol()) < new_order.get_qty()
-        {
-            // need to subtract the holdings by all the previous sell orders and then check if there is enough to sell
+    // TODO
+    // if you have a queue of open orders, does it execute FiFo,
+    // or does it execute based on price, and then check for queue order as a tiebreaker
+    pub fn add_open_order(&mut self, new_order: OpenOrder) {
+        if matches!(new_order.get_side(), Side::Sell) {
+            let qty_in_acc = self.get_ticker_holdings_qty(&new_order.get_symbol());
+            for o in self.open_orders {
+
+            }
+            // 1. check previous open orders
+
+            // 2. subtract the sell ones
+            // 3. then compare the magnitude
             println!("You don't have enough of this to sell!");
             return;
         }
@@ -203,7 +211,7 @@ impl AppState {
         println!("Open order added");
     }
 
-    pub fn remove_from_open_orders(&mut self, order_to_remove: LimitOrder) {
+    pub fn remove_from_open_orders(&mut self, order_to_remove: OpenOrder) {
         self.open_orders.retain(|order| {
             !(order.get_symbol() == order_to_remove.get_symbol()
                 && order.get_price_per() == order_to_remove.get_price_per()
@@ -219,9 +227,9 @@ pub async fn monitor_order(state: Arc<Mutex<AppState>>, running: Arc<AtomicBool>
         while running.load(Ordering::Relaxed) {
             {
                 let mut state_guard = state.lock().unwrap();
-                let open_orders: Vec<LimitOrder> = state_guard.get_open_orders();
+                let open_orders: Vec<OpenOrder> = state_guard.get_open_orders();
                 // pull price
-                let mut orders_executed: Vec<LimitOrder> = Vec::new();
+                let mut orders_executed: Vec<OpenOrder> = Vec::new();
                 for o in open_orders {
                     rt.block_on(async {
                         if matches!(o.get_side(), Side::Buy)

@@ -1,5 +1,5 @@
 use naviin::AppState::AppState;
-use naviin::Finance::{Trade, LimitOrder, Side, Holding};
+use naviin::Finance::{Trade, OpenOrder, Side, Holding};
 use naviin::Storage;
 use std::sync::{Arc, Mutex};
 
@@ -31,9 +31,9 @@ fn test_limit_order_management() {
     let mut state = AppState::new();
     
     // Add multiple limit orders
-    let order1 = LimitOrder::new("AAPL".to_string(), 10.0, 145.0, Side::Buy);
-    let order2 = LimitOrder::new("GOOGL".to_string(), 5.0, 2800.0, Side::Buy);
-    let order3 = LimitOrder::new("MSFT".to_string(), 15.0, 340.0, Side::Buy);
+    let order1 = OpenOrder::new("AAPL".to_string(), 10.0, 145.0, Side::Buy);
+    let order2 = OpenOrder::new("GOOGL".to_string(), 5.0, 2800.0, Side::Buy);
+    let order3 = OpenOrder::new("MSFT".to_string(), 15.0, 340.0, Side::Buy);
     
     state.add_open_order(order1.clone());
     state.add_open_order(order2.clone());
@@ -85,7 +85,7 @@ fn test_fund_withdraw_and_reset() {
     // Add some orders
     {
         let mut guard = state.lock().unwrap();
-        let order = LimitOrder::new("AAPL".to_string(), 10.0, 150.0, Side::Buy);
+        let order = OpenOrder::new("AAPL".to_string(), 10.0, 150.0, Side::Buy);
         guard.add_open_order(order);
     }
     
@@ -118,9 +118,9 @@ fn test_order_removal_with_multiple_identical_symbols() {
     let mut state = AppState::new();
     
     // Add multiple orders for same symbol but different prices
-    let order1 = LimitOrder::new("AAPL".to_string(), 10.0, 145.0, Side::Buy);
-    let order2 = LimitOrder::new("AAPL".to_string(), 10.0, 150.0, Side::Buy);
-    let order3 = LimitOrder::new("AAPL".to_string(), 10.0, 155.0, Side::Buy);
+    let order1 = OpenOrder::new("AAPL".to_string(), 10.0, 145.0, Side::Buy);
+    let order2 = OpenOrder::new("AAPL".to_string(), 10.0, 150.0, Side::Buy);
+    let order3 = OpenOrder::new("AAPL".to_string(), 10.0, 155.0, Side::Buy);
     
     state.add_open_order(order1.clone());
     state.add_open_order(order2.clone());
@@ -187,8 +187,8 @@ fn test_zero_balance_withdrawal_protection() {
 fn test_order_removal_nonexistent_order() {
     let mut state = AppState::new();
     
-    let order1 = LimitOrder::new("AAPL".to_string(), 10.0, 150.0, Side::Buy);
-    let order2 = LimitOrder::new("GOOGL".to_string(), 5.0, 2800.0, Side::Buy);
+    let order1 = OpenOrder::new("AAPL".to_string(), 10.0, 150.0, Side::Buy);
+    let order2 = OpenOrder::new("GOOGL".to_string(), 5.0, 2800.0, Side::Buy);
     
     state.add_open_order(order1.clone());
     
@@ -229,7 +229,7 @@ fn test_state_with_holdings_and_orders() {
     state.deposit(10000.0);
     
     // Add order
-    let order = LimitOrder::new("AAPL".to_string(), 10.0, 150.0, Side::Buy);
+    let order = OpenOrder::new("AAPL".to_string(), 10.0, 150.0, Side::Buy);
     state.add_open_order(order);
     
     // Add trade
