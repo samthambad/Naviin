@@ -53,7 +53,7 @@ async fn main() {
                 Storage::save_state(&state);
             },
             "buylimit" => {
-                let new_limit_order = Finance::create_limit_order().await;
+                let new_limit_order = Finance::create_limit_order(true).await;
                 if let Some(order) = new_limit_order {
                     {
                         let mut state_guard = state.lock().unwrap();
@@ -68,14 +68,15 @@ async fn main() {
                 Storage::save_state(&state);
             },
             "selllimit" => {
-                
-            },
-            "reset" => Storage::default_state(&state),
-            "help" => UserInput::display_help(),
-            "exit" => {
-                running.store(false, std::sync::atomic::Ordering::Relaxed);
-                Storage::save_state(&state);
-                break;
+                let new_limit_order = Finance::create_limit_order(false).await;
+                if let Some(order) = new_limit_order {
+                    {
+                        let mut state_guard = state.lock().unwrap();
+                        state_guard.add_open_order(order);
+                    }
+                    Storage::save_state(&state);
+                }
+
             },
             "stopbg" => {
                 running.store(false, std::sync::atomic::Ordering::Relaxed);
@@ -84,6 +85,13 @@ async fn main() {
             "startbg" => {
                 running.store(true, std::sync::atomic::Ordering::Relaxed);
                 println!("Background orders resumed execution");
+            },
+            "reset" => Storage::default_state(&state),
+            "help" => UserInput::display_help(),
+            "exit" => {
+                running.store(false, std::sync::atomic::Ordering::Relaxed);
+                Storage::save_state(&state);
+                break;
             },
             _ => println!("Wrong command entered"),
         }

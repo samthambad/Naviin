@@ -146,7 +146,7 @@ pub async fn buy(state: &Arc<Mutex<AppState>>) {
     }
 }
 
-pub async fn create_limit_order() -> Option<LimitOrder> {
+pub async fn create_limit_order(ifBuy: bool) -> Option<LimitOrder> {
     let ticker = match UserInput::ask_ticker() {
         Some(t) => t,
         None => return None,
@@ -159,14 +159,23 @@ pub async fn create_limit_order() -> Option<LimitOrder> {
         Some(q) => q,
         None => return None,
     };
-    // create new 
-    Some(LimitOrder {
-        symbol: ticker.clone(),
-        quantity,
-        price_per: limit_price,
-        side: Side::Buy, // for now its only Buy
-        timestamp: Utc::now().timestamp(),
-    })
+    if ifBuy {
+        Some(LimitOrder {
+            symbol: ticker.clone(),
+            quantity,
+            price_per: limit_price,
+            side: Side::Buy,
+            timestamp: Utc::now().timestamp(),
+        })
+    } else {
+        Some(LimitOrder {
+            symbol: ticker.clone(),
+            quantity,
+            price_per: limit_price,
+            side: Side::Sell,
+            timestamp: Utc::now().timestamp(),
+        })
+    }
 }
 
 //  is good till cancelled
@@ -188,6 +197,23 @@ pub async fn buy_limit(state: &mut AppState, order: &LimitOrder) -> bool {
         return true;
     }
     false
+}
+
+pub async fn sell_stop_loss(state: &mut AppState, order: &LimitOrder) -> bool {
+    let symbol = order.get_symbol().clone();
+    let limit_price = order.get_price_per();
+    let sale_qty = order.get_qty();
+    let curr_cash = state.check_balance();
+    let curr_price: f64 = FinanceProvider::previous_price_close(&symbol, false).await;
+    let total_sale_value = curr_price * sale_qty;
+    if curr_price <= limit_price {
+        state.deposit_sell(total_sale_value);
+        remove_from_holdings(&symbol, sale_qty, state).await;
+        state.add_trade(Trade::sell(symbol, sale_qty, curr_price));
+        return true;
+    }
+    false
+
 }
 
 
@@ -212,7 +238,7 @@ pub async fn sell(state: &Arc<Mutex<AppState>>) {
     } else {
         // add funds
         state_guard.deposit_sell(total_price);
-        remove_from_holdings(&ticker, quantity, state).await;
+        remove_from_holdings(&ticker, quantity, &mut(*state_guard)).await;
         state_guard.add_trade(Trade::sell(ticker, quantity, curr_price));
     }
 }
@@ -248,9 +274,8 @@ async fn add_to_holdings(
     state.set_holdings_map(prev_holdings_map).await;
 }
 
-async fn remove_from_holdings(ticker: &String, quantity: f64, state: &Arc<Mutex<AppState>>) {
-    let mut state_guard = state.lock().unwrap();
-    let mut prev_holdings_map: HashMap<Symbol, Holding> = state_guard.get_holdings_map();
+async fn remove_from_holdings(ticker: &String, quantity: f64, state: &mut AppState) {
+    let mut prev_holdings_map: HashMap<Symbol, Holding> = state.get_holdings_map();
     if let Some(existing_holding) = prev_holdings_map.get(ticker) {
         // Update existing holding with new average cost
         let prev_avg_cost = existing_holding.get_avg_price();
@@ -263,7 +288,7 @@ async fn remove_from_holdings(ticker: &String, quantity: f64, state: &Arc<Mutex<
                 ticker.clone(),
                 Holding::new(ticker.clone(), new_qty, prev_avg_cost),
             );
-            state_guard.set_holdings_map(prev_holdings_map).await;
+            state.set_holdings_map(prev_holdings_map).await;
         }
     }
 }
