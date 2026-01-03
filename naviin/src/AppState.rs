@@ -191,7 +191,7 @@ impl AppState {
     pub fn get_available_holdings_qty(&self, ticker: &String) -> f64 {
         let mut qty = self.get_ticker_holdings_qty(ticker);
         for o in &self.open_orders {
-            if matches!(o.get_side(), Side::Sell) && o.get_symbol() == ticker {
+            if *o.get_side() == Side::Sell && o.get_symbol() == ticker {
                 qty -= o.get_qty();
             }
         }
@@ -201,7 +201,7 @@ impl AppState {
     pub fn get_available_cash(&self) -> f64 {
         let mut cash = self.cash_balance;
         for o in &self.open_orders {
-            if matches!(o.get_side(), Side::Buy) {
+            if *o.get_side() == Side::Buy {
                 cash -= o.get_price_per() * o.get_qty();
             }
         }
@@ -213,7 +213,7 @@ impl AppState {
     }
 
     pub fn add_open_order(&mut self, new_order: OpenOrder) {
-        if matches!(new_order.get_side(), Side::Sell) {
+        if *new_order.get_side() == Side::Sell {
             // Check that you have enough to sell after accounting for the existing sell orders
             if self.get_available_holdings_qty(new_order.get_symbol()) - new_order.get_qty() < 0.0 {
                 println!("You don't have enough of this to sell!");
@@ -223,10 +223,11 @@ impl AppState {
             // Check for funds after accounting for other buys
             if self.get_available_cash() < new_order.get_qty() * new_order.get_price_per() {
                 println!("You don't have enough of cash for this purchase!");
-                return
+                return;
             }
         }
         self.open_orders.push(new_order);
+        open_order_sorting(&mut self.open_orders);
         println!("Open order added");
     }
 
@@ -236,12 +237,25 @@ impl AppState {
                 && order.get_price_per() == order_to_remove.get_price_per()
                 && order.get_qty() == order_to_remove.get_qty())
         });
+        open_order_sorting(&mut self.open_orders);
     }
 }
 
-// TODO
-// if you have a queue of open orders, does it execute FiFo,
-// or does it execute based on price, and then check for queue order as a tiebreaker
+fn open_order_sorting(order_arr: &mut Vec<OpenOrder>) {
+    order_arr.sort_by_key(|o| o.get_timestamp());
+
+    order_arr.sort_by(|a, b| {
+        if a.get_side() != b.get_side() || a.get_symbol() != b.get_symbol() {
+            return std::cmp::Ordering::Equal;
+        }
+        return if *a.get_side() == Side::Buy {
+            a.get_price_per().partial_cmp(&b.get_price_per()).unwrap()
+        } else {
+            b.get_price_per().partial_cmp(&a.get_price_per()).unwrap()
+        };
+    });
+}
+
 pub async fn monitor_order(state: Arc<Mutex<AppState>>, running: Arc<AtomicBool>) {
     // create a thread
     thread::spawn(move || {
@@ -250,11 +264,10 @@ pub async fn monitor_order(state: Arc<Mutex<AppState>>, running: Arc<AtomicBool>
             {
                 let mut state_guard = state.lock().unwrap();
                 let open_orders: Vec<OpenOrder> = state_guard.get_open_orders();
-                // pull price
                 let mut orders_executed: Vec<OpenOrder> = Vec::new();
                 for o in open_orders {
                     rt.block_on(async {
-                        if matches!(o.get_side(), Side::Buy)
+                        if *o.get_side() == Side::Buy
                             && Finance::buy_limit(&mut state_guard, &o).await
                         {
                             // remove that one from the list

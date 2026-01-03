@@ -1,5 +1,5 @@
-use yfinance_rs::{Ticker, YfClient};
 use rust_decimal::prelude::*;
+use yfinance_rs::{Ticker, YfClient};
 
 pub async fn previous_price_close(symbol: &String, print: bool) -> f64 {
     let client = YfClient::default();
@@ -12,15 +12,15 @@ pub async fn previous_price_close(symbol: &String, print: bool) -> f64 {
                     println!("Previous close: {price}");
                 }
                 price.amount().to_f64().unwrap()
-            },
-            None =>{
+            }
+            None => {
                 eprintln!("{symbol} -> previous close unavailable");
                 0.0
-            },
+            }
         },
         Err(err) => {
             eprintln!("Failed to fetch {symbol} quote: {err}");
             0.0
-        },
+        }
     }
 }

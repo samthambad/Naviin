@@ -1,6 +1,6 @@
-use std::{collections::HashMap, sync::Arc, sync::Mutex};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, sync::Arc, sync::Mutex};
 
 use crate::{AppState::AppState, FinanceProvider, UserInput};
 
@@ -66,7 +66,7 @@ impl Holding {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum Side {
     Buy,
     Sell,
@@ -180,7 +180,6 @@ pub async fn create_limit_order(ifBuy: bool) -> Option<OpenOrder> {
 
 //  is good till cancelled
 pub async fn buy_limit(state: &mut AppState, order: &OpenOrder) -> bool {
-
     let symbol = order.get_symbol().clone();
     let limit_price = order.get_price_per();
     let purchase_qty = order.get_qty();
@@ -213,10 +212,7 @@ pub async fn sell_stop_loss(state: &mut AppState, order: &OpenOrder) -> bool {
         return true;
     }
     false
-
 }
-
-
 
 pub async fn sell(state: &Arc<Mutex<AppState>>) {
     let ticker = match UserInput::ask_ticker() {
@@ -238,17 +234,12 @@ pub async fn sell(state: &Arc<Mutex<AppState>>) {
     } else {
         // add funds
         state_guard.deposit_sell(total_price);
-        remove_from_holdings(&ticker, quantity, &mut(*state_guard)).await;
+        remove_from_holdings(&ticker, quantity, &mut (*state_guard)).await;
         state_guard.add_trade(Trade::sell(ticker, quantity, curr_price));
     }
 }
 
-async fn add_to_holdings(
-    ticker: &String,
-    quantity: f64,
-    price_per: f64,
-    state: &mut AppState,
-) {
+async fn add_to_holdings(ticker: &String, quantity: f64, price_per: f64, state: &mut AppState) {
     let mut prev_holdings_map: HashMap<Symbol, Holding> = state.get_holdings_map();
 
     // Use HashMap's get method to check if holding exists
@@ -319,7 +310,7 @@ impl OpenOrder {
     pub fn get_price_per(&self) -> f64 {
         self.price_per
     }
-    pub fn get_qty(&self) -> f64{
+    pub fn get_qty(&self) -> f64 {
         self.quantity
     }
     pub fn get_timestamp(&self) -> i64 {
