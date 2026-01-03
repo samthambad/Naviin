@@ -30,7 +30,7 @@ async fn main() {
                 let fund_amount: f64 = fund_amount.trim().parse().unwrap();
                 Finance::fund(&state, fund_amount).await;
                 Storage::save_state(&state);
-            },
+            }
             "display" => state.lock().unwrap().display().await,
             "withdraw" => {
                 print!("Amount: ");
@@ -42,16 +42,16 @@ async fn main() {
                 let withdraw_amount: f64 = withdraw_amount.trim().parse().unwrap();
                 Finance::withdraw(&state, withdraw_amount).await;
                 Storage::save_state(&state);
-            },
+            }
             "price" => {
                 if let Some(ticker) = UserInput::ask_ticker() {
                     FinanceProvider::previous_price_close(&ticker, true).await;
                 }
-            },
+            }
             "buy" => {
                 Finance::buy(&state).await;
                 Storage::save_state(&state);
-            },
+            }
             "buylimit" => {
                 let new_limit_order = Finance::create_limit_order(true).await;
                 if let Some(order) = new_limit_order {
@@ -62,12 +62,12 @@ async fn main() {
                     Storage::save_state(&state);
                     println!("Open order added");
                 }
-            },
+            }
             "sell" => {
                 Finance::sell(&state).await;
                 Storage::save_state(&state);
-            },
-            "selllimit" => {
+            }
+            "stoploss" => {
                 let new_limit_order = Finance::create_limit_order(false).await;
                 if let Some(order) = new_limit_order {
                     {
@@ -76,23 +76,24 @@ async fn main() {
                     }
                     Storage::save_state(&state);
                 }
-
-            },
+            }
             "stopbg" => {
                 running.store(false, std::sync::atomic::Ordering::Relaxed);
-                println!("All background orders will be paused till relaunch of app or `startbg` command");
-            },
+                println!(
+                    "All background orders will be paused till relaunch of app or `startbg` command"
+                );
+            }
             "startbg" => {
                 running.store(true, std::sync::atomic::Ordering::Relaxed);
                 println!("Background orders resumed execution");
-            },
+            }
             "reset" => Storage::default_state(&state),
             "help" => UserInput::display_help(),
             "exit" => {
                 running.store(false, std::sync::atomic::Ordering::Relaxed);
                 Storage::save_state(&state);
                 break;
-            },
+            }
             _ => println!("Wrong command entered"),
         }
     }
