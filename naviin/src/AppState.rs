@@ -187,25 +187,44 @@ impl AppState {
         }
     }
 
+    // After subtracting the open sell orders
+    pub fn get_available_holdings_qty(&self, ticker: &String) -> f64 {
+        let mut qty = self.get_ticker_holdings_qty(ticker);
+        for o in &self.open_orders {
+            if matches!(o.get_side(), Side::Sell) && o.get_symbol() == ticker {
+                qty -= o.get_qty();
+            }
+        }
+        return qty;
+    }
+
+    pub fn get_available_cash(&self) -> f64 {
+        let mut cash = self.cash_balance;
+        for o in &self.open_orders {
+            if matches!(o.get_side(), Side::Buy) {
+                cash -= o.get_price_per() * o.get_qty();
+            }
+        }
+        return cash;
+    }
+
     pub fn get_open_orders(&self) -> Vec<OpenOrder> {
         self.open_orders.clone()
     }
 
-    // TODO
-    // if you have a queue of open orders, does it execute FiFo,
-    // or does it execute based on price, and then check for queue order as a tiebreaker
     pub fn add_open_order(&mut self, new_order: OpenOrder) {
         if matches!(new_order.get_side(), Side::Sell) {
-            let qty_in_acc = self.get_ticker_holdings_qty(&new_order.get_symbol());
-            for o in self.open_orders {
-
+            // Check that you have enough to sell after accounting for the existing sell orders
+            if self.get_available_holdings_qty(new_order.get_symbol()) - new_order.get_qty() < 0.0 {
+                println!("You don't have enough of this to sell!");
+                return;
             }
-            // 1. check previous open orders
-
-            // 2. subtract the sell ones
-            // 3. then compare the magnitude
-            println!("You don't have enough of this to sell!");
-            return;
+        } else {
+            // Check for funds after accounting for other buys
+            if self.get_available_cash() < new_order.get_qty() * new_order.get_price_per() {
+                println!("You don't have enough of cash for this purchase!");
+                return
+            }
         }
         self.open_orders.push(new_order);
         println!("Open order added");
@@ -220,6 +239,9 @@ impl AppState {
     }
 }
 
+// TODO
+// if you have a queue of open orders, does it execute FiFo,
+// or does it execute based on price, and then check for queue order as a tiebreaker
 pub async fn monitor_order(state: Arc<Mutex<AppState>>, running: Arc<AtomicBool>) {
     // create a thread
     thread::spawn(move || {
