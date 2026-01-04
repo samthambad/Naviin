@@ -77,6 +77,16 @@ async fn main() {
                     Storage::save_state(&state);
                 }
             }
+            "takeprofit" => {
+                let new_limit_order = Finance::create_limit_order(false).await;
+                if let Some(order) = new_limit_order {
+                    {
+                        let mut state_guard = state.lock().unwrap();
+                        state_guard.add_open_order(order);
+                    }
+                    Storage::save_state(&state);
+                }
+            }
             "stopbg" => {
                 running.store(false, std::sync::atomic::Ordering::Relaxed);
                 println!(
