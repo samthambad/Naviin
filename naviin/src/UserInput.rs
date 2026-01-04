@@ -63,7 +63,7 @@ pub fn display_help() {
     println!("  buy               - Purchase shares of a stock. You will be prompted for ticker and quantity.");
     println!("  buylimit          - Purchase shares of a stock <= your limit price, good till cancelled.");
     println!("  sell              - Sell shares of a stock. You will be prompted for ticker and quantity.");
-    println!("  stoploss         - Sell shares of a stock when price <= your limit price, good till cancelled.");
+    println!("  stoploss          - Sell shares of a stock when price <= your limit price, good till cancelled.");
     println!("  startbg           - Allow open orders to run execution in the background.");
     println!("  stopbg            - Stop open orders from running execution in the background.");
     println!("  display           - Show your current cash balance, holdings, and their unrealized P&L.");

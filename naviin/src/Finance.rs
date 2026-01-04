@@ -285,38 +285,44 @@ async fn remove_from_holdings(ticker: &String, quantity: f64, state: &mut AppSta
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct OpenOrder {
-    symbol: Symbol,
-    quantity: f64,
-    price_per: f64,
-    side: Side,
-    timestamp: i64,
+pub enum OpenOrder {
+    BuyLimit { symbol: String, quantity: f64, price: f64, timestamp: i64 },
+    SellLimit { symbol: String, quantity: f64, price: f64, timestamp: i64 },
+    StopLoss { symbol: String, quantity: f64, price: f64, timestamp: i64 },
+    TakeProfit { symbol: String, quantity: f64, price: f64, timestamp: i64 },
 }
 
 impl OpenOrder {
-    pub fn new(symbol: Symbol, quantity: f64, price_per: f64, side: Side) -> Self {
-        Self {
-            symbol,
-            quantity,
-            price_per,
-            side,
-            timestamp: Utc::now().timestamp(),
+    pub fn get_symbol(&self) -> &String {
+        match self {
+            OpenOrder::BuyLimit { symbol, .. } => symbol,
+            OpenOrder::SellLimit { symbol, .. } => symbol,
+            OpenOrder::StopLoss { symbol, .. } => symbol,
+            OpenOrder::TakeProfit { symbol, .. } => symbol,
         }
     }
-
-    pub fn get_symbol(&self) -> &Symbol {
-        &self.symbol
+    pub fn get_qty(&self) -> f64 {
+        match self {
+            OpenOrder::BuyLimit { quantity, ..} => *quantity,
+            OpenOrder::SellLimit { quantity, ..} => *quantity,
+            OpenOrder::StopLoss { quantity, ..} => *quantity,
+            OpenOrder::TakeProfit { quantity, ..} => *quantity,
+        }
     }
     pub fn get_price_per(&self) -> f64 {
-        self.price_per
+        match self {
+            OpenOrder::BuyLimit { price, .. } => *price,
+            OpenOrder::SellLimit { price, .. } => *price,
+            OpenOrder::StopLoss { price, .. } => *price,
+            OpenOrder::TakeProfit { price, .. } => *price,
+        }
     }
-    pub fn get_qty(&self) -> f64 {
-        self.quantity
-    }
-    pub fn get_timestamp(&self) -> i64 {
-        self.timestamp
-    }
-    pub fn get_side(&self) -> &Side {
-        &self.side
+    pub fn get_side(&self) -> Side {
+        match self {
+           OpenOrder::BuyLimit { .. } => Side::Buy,
+            OpenOrder::SellLimit { .. } => Side::Buy,
+            OpenOrder::StopLoss { .. } => Side::Buy,
+            OpenOrder::TakeProfit { .. } => Side::Buy,
+        }
     }
 }
