@@ -191,7 +191,7 @@ impl AppState {
     pub fn get_available_holdings_qty(&self, ticker: &String) -> f64 {
         let mut qty = self.get_ticker_holdings_qty(ticker);
         for o in &self.open_orders {
-            if *o.get_side() == Side::Sell && o.get_symbol() == ticker {
+            if o.get_side() == Side::Sell && o.get_symbol() == ticker {
                 qty -= o.get_qty();
             }
         }
@@ -201,7 +201,7 @@ impl AppState {
     pub fn get_available_cash(&self) -> f64 {
         let mut cash = self.cash_balance;
         for o in &self.open_orders {
-            if *o.get_side() == Side::Buy {
+            if o.get_side() == Side::Buy {
                 cash -= o.get_price_per() * o.get_qty();
             }
         }
@@ -213,7 +213,7 @@ impl AppState {
     }
 
     pub fn add_open_order(&mut self, new_order: OpenOrder) {
-        if *new_order.get_side() == Side::Sell {
+        if new_order.get_side() == Side::Sell {
             // Check that you have enough to sell after accounting for the existing sell orders
             if self.get_available_holdings_qty(new_order.get_symbol()) - new_order.get_qty() < 0.0 {
                 println!("You don't have enough of this to sell!");
@@ -248,7 +248,7 @@ fn open_order_sorting(order_arr: &mut Vec<OpenOrder>) {
         if a.get_side() != b.get_side() || a.get_symbol() != b.get_symbol() {
             return std::cmp::Ordering::Equal;
         }
-        return if *a.get_side() == Side::Buy {
+        return if a.get_side() == Side::Buy {
             a.get_price_per().partial_cmp(&b.get_price_per()).unwrap()
         } else {
             b.get_price_per().partial_cmp(&a.get_price_per()).unwrap()
@@ -267,7 +267,7 @@ pub async fn monitor_order(state: Arc<Mutex<AppState>>, running: Arc<AtomicBool>
                 let mut orders_executed: Vec<OpenOrder> = Vec::new();
                 for o in open_orders {
                     rt.block_on(async {
-                        if *o.get_side() == Side::Buy
+                        if o.get_side() == Side::Buy
                             && Finance::buy_limit(&mut state_guard, &o).await
                         {
                             // remove that one from the list
