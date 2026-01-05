@@ -58,7 +58,7 @@ impl Holding {
 
     pub async fn get_pnl(&self) -> f64 {
         // fetch current price
-        let curr_price = FinanceProvider::previous_price_close(&self.name, false).await;
+        let curr_price = FinanceProvider::curr_price(&self.name, false).await;
         // price delta per share
         let delta = curr_price - self.get_avg_price();
         // multiply by the shares owned
@@ -132,7 +132,7 @@ pub async fn buy(state: &Arc<Mutex<AppState>>) {
         Some(q) => q,
         None => return,
     };
-    let curr_price: f64 = FinanceProvider::previous_price_close(&symbol, false).await;
+    let curr_price: f64 = FinanceProvider::curr_price(&symbol, false).await;
     let total_price: f64 = curr_price * purchase_qty;
 
     let mut state_guard = state.lock().unwrap();
@@ -184,7 +184,7 @@ pub async fn buy_limit(state: &mut AppState, order: &OpenOrder) -> bool {
     let limit_price = order.get_price_per();
     let purchase_qty = order.get_qty();
     let curr_cash = state.check_balance();
-    let curr_price: f64 = FinanceProvider::previous_price_close(&symbol, false).await;
+    let curr_price: f64 = FinanceProvider::curr_price(&symbol, false).await;
     let total_purchase_value = curr_price * purchase_qty;
     if curr_price <= limit_price {
         if total_purchase_value > curr_cash {
@@ -202,9 +202,9 @@ pub async fn sell_stop_loss(state: &mut AppState, order: &OpenOrder) -> bool {
     let symbol = order.get_symbol().clone();
     let limit_price = order.get_price_per();
     let sale_qty = order.get_qty();
-    let curr_cash = state.check_balance();
-    let curr_price: f64 = FinanceProvider::previous_price_close(&symbol, false).await;
+    let curr_price: f64 = FinanceProvider::curr_price(&symbol, false).await;
     let total_sale_value = curr_price * sale_qty;
+
     if curr_price <= limit_price {
         state.deposit_sell(total_sale_value);
         remove_from_holdings(&symbol, sale_qty, state).await;
@@ -223,7 +223,7 @@ pub async fn sell(state: &Arc<Mutex<AppState>>) {
         Some(q) => q,
         None => return,
     };
-    let curr_price: f64 = FinanceProvider::previous_price_close(&ticker, false).await;
+    let curr_price: f64 = FinanceProvider::curr_price(&ticker, false).await;
     let total_price: f64 = curr_price * quantity;
     println!("The total price of sale is: {total_price}");
 
