@@ -146,8 +146,8 @@ pub async fn buy(state: &Arc<Mutex<AppState>>) {
     }
 }
 
-pub async fn create_limit_order(ifBuy: bool) -> Option<OpenOrder> {
-    let ticker = match UserInput::ask_ticker() {
+pub fn create_order(order_type: OrderType) -> Option<OpenOrder> {
+    let symbol = match UserInput::ask_ticker() {
         Some(t) => t,
         None => return None,
     };
@@ -155,63 +155,30 @@ pub async fn create_limit_order(ifBuy: bool) -> Option<OpenOrder> {
         Some(q) => q,
         None => return None,
     };
-    let limit_price: f64 = match UserInput::ask_price() {
+    let price: f64 = match UserInput::ask_price() {
         Some(q) => q,
         None => return None,
     };
-    if ifBuy {
-        Some(OpenOrder {
-            symbol: ticker.clone(),
+    match order_type {
+        OrderType::BuyLimit => Some(OpenOrder::BuyLimit {
+            symbol,
             quantity,
-            price_per: limit_price,
-            side: Side::Buy,
+            price,
             timestamp: Utc::now().timestamp(),
-        })
-    } else {
-        Some(OpenOrder {
-            symbol: ticker.clone(),
+        }),
+        OrderType:OrderType::StopLoss => Some(OpenOrder::StopLoss {
+            symbol,
             quantity,
-            price_per: limit_price,
-            side: Side::Sell,
+            price,
             timestamp: Utc::now().timestamp(),
-        })
+        }),
+        OrderType::TakeProfit => Some(OpenOrder::TakeProfit {
+            symbol,
+            quantity,
+            price,
+            timestamp: Utc::now().timestamp(),
+        }),
     }
-}
-
-//  is good till cancelled
-pub async fn buy_limit(state: &mut AppState, order: &OpenOrder) -> bool {
-    let symbol = order.get_symbol().clone();
-    let limit_price = order.get_price_per();
-    let purchase_qty = order.get_qty();
-    let curr_cash = state.check_balance();
-    let curr_price: f64 = FinanceProvider::previous_price_close(&symbol, false).await;
-    let total_purchase_value = curr_price * purchase_qty;
-    if curr_price <= limit_price {
-        if total_purchase_value > curr_cash {
-            return false;
-        }
-        state.withdraw_purchase(total_purchase_value);
-        add_to_holdings(&symbol, purchase_qty, curr_price, state).await;
-        state.add_trade(Trade::buy(symbol, purchase_qty, curr_price));
-        return true;
-    }
-    false
-}
-
-pub async fn sell_stop_loss(state: &mut AppState, order: &OpenOrder) -> bool {
-    let symbol = order.get_symbol().clone();
-    let limit_price = order.get_price_per();
-    let sale_qty = order.get_qty();
-    let curr_cash = state.check_balance();
-    let curr_price: f64 = FinanceProvider::previous_price_close(&symbol, false).await;
-    let total_sale_value = curr_price * sale_qty;
-    if curr_price <= limit_price {
-        state.deposit_sell(total_sale_value);
-        remove_from_holdings(&symbol, sale_qty, state).await;
-        state.add_trade(Trade::sell(symbol, sale_qty, curr_price));
-        return true;
-    }
-    false
 }
 
 pub async fn sell(state: &Arc<Mutex<AppState>>) {
@@ -285,9 +252,15 @@ async fn remove_from_holdings(ticker: &String, quantity: f64, state: &mut AppSta
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum OrderType {
+    BuyLimit,
+    StopLoss,
+    TakeProfit
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum OpenOrder {
     BuyLimit { symbol: String, quantity: f64, price: f64, timestamp: i64 },
-    SellLimit { symbol: String, quantity: f64, price: f64, timestamp: i64 },
     StopLoss { symbol: String, quantity: f64, price: f64, timestamp: i64 },
     TakeProfit { symbol: String, quantity: f64, price: f64, timestamp: i64 },
 }
@@ -296,7 +269,6 @@ impl OpenOrder {
     pub fn get_symbol(&self) -> &String {
         match self {
             OpenOrder::BuyLimit { symbol, .. } => symbol,
-            OpenOrder::SellLimit { symbol, .. } => symbol,
             OpenOrder::StopLoss { symbol, .. } => symbol,
             OpenOrder::TakeProfit { symbol, .. } => symbol,
         }
@@ -304,7 +276,6 @@ impl OpenOrder {
     pub fn get_qty(&self) -> f64 {
         match self {
             OpenOrder::BuyLimit { quantity, ..} => *quantity,
-            OpenOrder::SellLimit { quantity, ..} => *quantity,
             OpenOrder::StopLoss { quantity, ..} => *quantity,
             OpenOrder::TakeProfit { quantity, ..} => *quantity,
         }
@@ -312,15 +283,20 @@ impl OpenOrder {
     pub fn get_price_per(&self) -> f64 {
         match self {
             OpenOrder::BuyLimit { price, .. } => *price,
-            OpenOrder::SellLimit { price, .. } => *price,
             OpenOrder::StopLoss { price, .. } => *price,
             OpenOrder::TakeProfit { price, .. } => *price,
+        }
+    }
+    pub fn get_timestamp(&self) -> i64 {
+        match self {
+            OpenOrder::BuyLimit { timestamp, .. } => *timestamp,
+            OpenOrder::StopLoss { timestamp, .. } => *timestamp,
+            OpenOrder::TakeProfit { timestamp, .. } => *timestamp,
         }
     }
     pub fn get_side(&self) -> Side {
         match self {
            OpenOrder::BuyLimit { .. } => Side::Buy,
-            OpenOrder::SellLimit { .. } => Side::Buy,
             OpenOrder::StopLoss { .. } => Side::Buy,
             OpenOrder::TakeProfit { .. } => Side::Buy,
         }

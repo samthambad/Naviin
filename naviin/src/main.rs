@@ -3,6 +3,7 @@ use std::io::Write;
 use std::sync::{Arc, atomic::AtomicBool};
 // Import everything from the `naviin` library crate
 use naviin::{AppState::monitor_order, Finance, FinanceProvider, Storage, UserInput};
+use naviin::Finance::OrderType;
 
 #[tokio::main]
 async fn main() {
@@ -52,8 +53,13 @@ async fn main() {
                 Finance::buy(&state).await;
                 Storage::save_state(&state);
             }
+            "sell" => {
+                Finance::sell(&state).await;
+                Storage::save_state(&state);
+            }
             "buylimit" => {
-                let new_limit_order = Finance::create_limit_order(true).await;
+                let order_type = OrderType::BuyLimit;
+                let new_limit_order = Finance::create_order(order_type).await;
                 if let Some(order) = new_limit_order {
                     {
                         let mut state_guard = state.lock().unwrap();
@@ -63,12 +69,9 @@ async fn main() {
                     println!("Open order added");
                 }
             }
-            "sell" => {
-                Finance::sell(&state).await;
-                Storage::save_state(&state);
-            }
             "stoploss" => {
-                let new_limit_order = Finance::create_limit_order(false).await;
+                let order_type = OrderType::StopLoss;
+                let new_limit_order = Finance::create_order(order_type).await;
                 if let Some(order) = new_limit_order {
                     {
                         let mut state_guard = state.lock().unwrap();
@@ -78,7 +81,8 @@ async fn main() {
                 }
             }
             "takeprofit" => {
-                let new_limit_order = Finance::create_limit_order(false).await;
+                let order_type = OrderType::TakeProfit;
+                let new_limit_order = Finance::create_order(order_type).await;
                 if let Some(order) = new_limit_order {
                     {
                         let mut state_guard = state.lock().unwrap();
