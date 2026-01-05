@@ -45,7 +45,7 @@ async fn main() {
             }
             "price" => {
                 if let Some(ticker) = UserInput::ask_ticker() {
-                    FinanceProvider::previous_price_close(&ticker, true).await;
+                    FinanceProvider::curr_price(&ticker, true).await;
                 }
             }
             "buy" => {
@@ -60,7 +60,6 @@ async fn main() {
                         state_guard.add_open_order(order);
                     }
                     Storage::save_state(&state);
-                    println!("Open order added");
                 }
             }
             "sell" => {
