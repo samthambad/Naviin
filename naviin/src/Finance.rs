@@ -146,6 +146,26 @@ pub async fn buy(state: &Arc<Mutex<AppState>>) {
     }
 }
 
+//  is good till cancelled
+pub async fn buy_limit(state: &mut AppState, order: &OpenOrder) -> bool {
+    let symbol = order.get_symbol().clone();
+    let limit_price = order.get_price_per();
+    let purchase_qty = order.get_qty();
+    let curr_cash = state.check_balance();
+    let curr_price: f64 = FinanceProvider::previous_price_close(&symbol, false).await;
+    let total_purchase_value = curr_price * purchase_qty;
+    if curr_price <= limit_price {
+        if total_purchase_value > curr_cash {
+            return false;
+        }
+        state.withdraw_purchase(total_purchase_value);
+        add_to_holdings(&symbol, purchase_qty, curr_price, state).await;
+        state.add_trade(Trade::buy(symbol, purchase_qty, curr_price));
+        return true;
+    }
+    false
+}
+
 pub fn create_order(order_type: OrderType) -> Option<OpenOrder> {
     let symbol = match UserInput::ask_ticker() {
         Some(t) => t,
@@ -166,7 +186,7 @@ pub fn create_order(order_type: OrderType) -> Option<OpenOrder> {
             price,
             timestamp: Utc::now().timestamp(),
         }),
-        OrderType:OrderType::StopLoss => Some(OpenOrder::StopLoss {
+        OrderType::StopLoss => Some(OpenOrder::StopLoss {
             symbol,
             quantity,
             price,
@@ -204,6 +224,22 @@ pub async fn sell(state: &Arc<Mutex<AppState>>) {
         remove_from_holdings(&ticker, quantity, &mut (*state_guard)).await;
         state_guard.add_trade(Trade::sell(ticker, quantity, curr_price));
     }
+}
+
+pub async fn sell_stop_loss(state: &mut AppState, order: &OpenOrder) -> bool {
+    let symbol = order.get_symbol().clone();
+    let limit_price = order.get_price_per();
+    let sale_qty = order.get_qty();
+    let curr_cash = state.check_balance();
+    let curr_price: f64 = FinanceProvider::previous_price_close(&symbol, false).await;
+    let total_sale_value = curr_price * sale_qty;
+    if curr_price <= limit_price {
+        state.deposit_sell(total_sale_value);
+        remove_from_holdings(&symbol, sale_qty, state).await;
+        state.add_trade(Trade::sell(symbol, sale_qty, curr_price));
+        return true;
+    }
+    false
 }
 
 async fn add_to_holdings(ticker: &String, quantity: f64, price_per: f64, state: &mut AppState) {
@@ -255,14 +291,29 @@ async fn remove_from_holdings(ticker: &String, quantity: f64, state: &mut AppSta
 pub enum OrderType {
     BuyLimit,
     StopLoss,
-    TakeProfit
+    TakeProfit,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum OpenOrder {
-    BuyLimit { symbol: String, quantity: f64, price: f64, timestamp: i64 },
-    StopLoss { symbol: String, quantity: f64, price: f64, timestamp: i64 },
-    TakeProfit { symbol: String, quantity: f64, price: f64, timestamp: i64 },
+    BuyLimit {
+        symbol: String,
+        quantity: f64,
+        price: f64,
+        timestamp: i64,
+    },
+    StopLoss {
+        symbol: String,
+        quantity: f64,
+        price: f64,
+        timestamp: i64,
+    },
+    TakeProfit {
+        symbol: String,
+        quantity: f64,
+        price: f64,
+        timestamp: i64,
+    },
 }
 
 impl OpenOrder {
@@ -275,9 +326,9 @@ impl OpenOrder {
     }
     pub fn get_qty(&self) -> f64 {
         match self {
-            OpenOrder::BuyLimit { quantity, ..} => *quantity,
-            OpenOrder::StopLoss { quantity, ..} => *quantity,
-            OpenOrder::TakeProfit { quantity, ..} => *quantity,
+            OpenOrder::BuyLimit { quantity, .. } => *quantity,
+            OpenOrder::StopLoss { quantity, .. } => *quantity,
+            OpenOrder::TakeProfit { quantity, .. } => *quantity,
         }
     }
     pub fn get_price_per(&self) -> f64 {
@@ -296,7 +347,7 @@ impl OpenOrder {
     }
     pub fn get_side(&self) -> Side {
         match self {
-           OpenOrder::BuyLimit { .. } => Side::Buy,
+            OpenOrder::BuyLimit { .. } => Side::Buy,
             OpenOrder::StopLoss { .. } => Side::Buy,
             OpenOrder::TakeProfit { .. } => Side::Buy,
         }
