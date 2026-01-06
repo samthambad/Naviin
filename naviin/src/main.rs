@@ -3,7 +3,7 @@ use std::io::Write;
 use std::sync::{Arc, atomic::AtomicBool};
 // Import everything from the `naviin` library crate
 use naviin::{AppState::monitor_order, Finance, FinanceProvider, Storage, UserInput};
-use naviin::Finance::OrderType;
+use naviin::Orders::{self, OrderType};
 
 #[tokio::main]
 async fn main() {
@@ -58,8 +58,7 @@ async fn main() {
                 Storage::save_state(&state);
             }
             "buylimit" => {
-                let new_limit_order = Finance::create_order(OrderType::BuyLimit);
-                if let Some(order) = new_limit_order {
+                if let Some(order) = Orders::create_order(OrderType::BuyLimit) {
                     {
                         let mut state_guard = state.lock().unwrap();
                         state_guard.add_open_order(order);
@@ -68,8 +67,7 @@ async fn main() {
                 }
             }
             "stoploss" => {
-                let new_limit_order = Finance::create_order(OrderType::StopLoss);
-                if let Some(order) = new_limit_order {
+                if let Some(order) = Orders::create_order(OrderType::StopLoss) {
                     {
                         let mut state_guard = state.lock().unwrap();
                         state_guard.add_open_order(order);
@@ -78,8 +76,7 @@ async fn main() {
                 }
             }
             "takeprofit" => {
-                let new_limit_order = Finance::create_order(OrderType::TakeProfit);
-                if let Some(order) = new_limit_order {
+                if let Some(order) = Orders::create_order(OrderType::TakeProfit) {
                     {
                         let mut state_guard = state.lock().unwrap();
                         state_guard.add_open_order(order);
