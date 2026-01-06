@@ -7,7 +7,7 @@ use std::time::Duration;
 use chrono;
 use serde::{Deserialize, Serialize};
 
-use crate::Finance::{self, Holding, OpenOrder, Side, Symbol, Trade};
+use crate::Finance::{self, Holding, OpenOrder, OrderType, Side, Symbol, Trade};
 use crate::FinanceProvider;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -267,13 +267,37 @@ pub async fn monitor_order(state: Arc<Mutex<AppState>>, running: Arc<AtomicBool>
                 let mut orders_executed: Vec<OpenOrder> = Vec::new();
                 for o in open_orders {
                     rt.block_on(async {
-                        if o.get_side() == Side::Buy
-                            && Finance::buy_limit(&mut state_guard, &o).await
-                        {
-                            // remove that one from the list
-                            orders_executed.push(o);
-                        } else if Finance::sell_stop_loss(&mut state_guard, &o).await {
-                            orders_executed.push(o);
+                        match o {
+                            OpenOrder::BuyLimit {
+                                symbol: _,
+                                quantity: _,
+                                price: _,
+                                timestamp: _,
+                            } => {
+                                if Finance::buy_limit(&mut state_guard, &o).await {
+                                    orders_executed.push(o);
+                                }
+                            }
+                            OpenOrder::StopLoss {
+                                symbol: _,
+                                quantity: _,
+                                price: _,
+                                timestamp: _,
+                            } => {
+                                if Finance::sell_stop_loss(&mut state_guard, &o).await {
+                                    orders_executed.push(o);
+                                }
+                            }
+                            OpenOrder::TakeProfit {
+                                symbol: _,
+                                quantity: _,
+                                price: _,
+                                timestamp: _,
+                            } => {
+                                if Finance::sell_take_profit(&mut state_guard, &o).await {
+                                    orders_executed.push(o);
+                                }
+                            }
                         }
                     });
                 }
