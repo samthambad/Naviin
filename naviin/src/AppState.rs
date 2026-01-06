@@ -43,6 +43,10 @@ impl AppState {
             println!("Invalid amount");
             return;
         }
+        if amount > self.cash_balance {
+            println!("Insufficient balance");
+            return;
+        }
         self.cash_balance -= amount;
     }
 
