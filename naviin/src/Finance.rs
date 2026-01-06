@@ -230,12 +230,27 @@ pub async fn sell_stop_loss(state: &mut AppState, order: &OpenOrder) -> bool {
     let symbol = order.get_symbol().clone();
     let limit_price = order.get_price_per();
     let sale_qty = order.get_qty();
-    let curr_price: f64 = FinanceProvider::previous_price_close(&symbol, false).await;
+    let curr_price: f64 = FinanceProvider::curr_price(&symbol, false).await;
     let total_sale_value = curr_price * sale_qty;
     if curr_price <= limit_price {
         state.deposit_sell(total_sale_value);
         remove_from_holdings(&symbol, sale_qty, state).await;
         state.add_trade(Trade::sell(symbol, sale_qty, curr_price));
+        return true;
+    }
+    false
+}
+
+pub async fn sell_take_profit(state: &mut AppState, order: &OpenOrder) -> bool {
+    let symbol = order.get_symbol().clone();
+    let take_profit_price = order.get_price_per();
+    let sale_qty = order.get_qty();
+    let curr_price: f64 = FinanceProvider::curr_price(&symbol, false).await;
+    let total_sale_value = take_profit_price * sale_qty;
+    if curr_price >= take_profit_price {
+        state.deposit_sell(total_sale_value);
+        remove_from_holdings(&symbol, sale_qty, state).await;
+        state.add_trade(Trade::sell(symbol, sale_qty, take_profit_price));
         return true;
     }
     false
