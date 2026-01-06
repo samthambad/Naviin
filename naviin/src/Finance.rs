@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::{AppState::AppState, FinanceProvider, UserInput};
 
+// Add funds to user account
 pub async fn fund(state: &Arc<Mutex<AppState>>, amount: f64) {
     if amount <= 0.0 {
         println!("Invalid amount");
@@ -16,6 +17,7 @@ pub async fn fund(state: &Arc<Mutex<AppState>>, amount: f64) {
     state_guard.display().await;
 }
 
+// Withdraw funds from user account if sufficient balance available
 pub async fn withdraw(state: &Arc<Mutex<AppState>>, amount: f64) {
     let mut state_guard = state.lock().unwrap();
     if amount <= 0.0 {
@@ -32,6 +34,7 @@ pub async fn withdraw(state: &Arc<Mutex<AppState>>, amount: f64) {
 
 pub type Symbol = String;
 
+// Represents owned stock position with quantity and average purchase cost
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Holding {
     name: String,
@@ -66,7 +69,8 @@ impl Holding {
     }
 }
 
-pub async fn buy(state: &Arc<Mutex<AppState>>) {
+// Asks user for input and calls Trade::buy
+pub async fn create_buy(state: &Arc<Mutex<AppState>>) {
     let symbol = match UserInput::ask_ticker() {
         Some(t) => t,
         None => return,
@@ -89,7 +93,8 @@ pub async fn buy(state: &Arc<Mutex<AppState>>) {
     }
 }
 
-pub async fn sell(state: &Arc<Mutex<AppState>>) {
+// Asks user for input and calls Trade::sell
+pub async fn create_sell(state: &Arc<Mutex<AppState>>) {
     let ticker = match UserInput::ask_ticker() {
         Some(t) => t,
         None => return,
@@ -114,6 +119,7 @@ pub async fn sell(state: &Arc<Mutex<AppState>>) {
     }
 }
 
+// Update or create holding with new purchase, calculating average cost
 pub(crate) async fn add_to_holdings(ticker: &String, quantity: f64, price_per: f64, state: &mut AppState) {
     let mut prev_holdings_map: HashMap<Symbol, Holding> = state.get_holdings_map();
 
@@ -140,6 +146,7 @@ pub(crate) async fn add_to_holdings(ticker: &String, quantity: f64, price_per: f
     state.set_holdings_map(prev_holdings_map).await;
 }
 
+// Reduce or remove holding after sale, keeping average cost unchanged
 pub(crate) async fn remove_from_holdings(ticker: &String, quantity: f64, state: &mut AppState) {
     let mut prev_holdings_map: HashMap<Symbol, Holding> = state.get_holdings_map();
     if let Some(existing_holding) = prev_holdings_map.get(ticker) {
