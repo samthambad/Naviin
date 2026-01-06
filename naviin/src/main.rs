@@ -50,11 +50,11 @@ async fn main() {
                 }
             }
             "buy" => {
-                Finance::buy(&state).await;
+                Finance::create_buy(&state).await;
                 Storage::save_state(&state);
             }
             "sell" => {
-                Finance::sell(&state).await;
+                Finance::create_sell(&state).await;
                 Storage::save_state(&state);
             }
             "buylimit" => {
