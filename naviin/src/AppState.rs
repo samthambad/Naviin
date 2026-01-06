@@ -11,6 +11,7 @@ use crate::Finance::{Holding, Symbol};
 use crate::FinanceProvider;
 use crate::Orders::{OpenOrder, Side, Trade};
 
+// Manages user account state including cash, holdings, trades, and pending orders
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AppState {
     cash_balance: f64,
@@ -39,6 +40,7 @@ impl AppState {
         self.cash_balance += amount;
     }
 
+    // Withdraw funds with validation
     pub fn withdraw(&mut self, amount: f64) {
         if amount <= 0.0 {
             println!("Invalid amount");
@@ -51,6 +53,7 @@ impl AppState {
         self.cash_balance -= amount;
     }
 
+    // Deduct purchase amount from balance without validation (used in buy functions)
     pub fn withdraw_purchase(&mut self, amount: f64) {
         if amount <= 0.0 {
             println!("Invalid amount");
@@ -59,6 +62,7 @@ impl AppState {
         self.cash_balance -= amount;
     }
 
+    // Add sale proceeds to balance
     pub fn deposit_sell(&mut self, amount: f64) {
         self.cash_balance += amount;
     }
@@ -166,25 +170,30 @@ impl AppState {
         );
     }
 
+    // Get current cash balance
     pub fn check_balance(&self) -> f64 {
         self.cash_balance
     }
 
+    // Get all holdings as copy of internal map
     pub fn get_holdings_map(&self) -> HashMap<Symbol, Holding> {
         self.holdings.clone()
     }
 
+    // Update holdings and refresh display
     pub async fn set_holdings_map(&mut self, new_holdings_map: HashMap<Symbol, Holding>) {
         self.holdings = new_holdings_map;
         self.display().await;
     }
 
+    // Add completed trade to history
     pub fn add_trade(&mut self, trade_to_add: Trade) {
         let mut new_trades = self.trades.clone();
         new_trades.push(trade_to_add);
         self.trades = new_trades;
     }
 
+    // Get quantity of shares held for a specific ticker
     pub fn get_ticker_holdings_qty(&self, ticker: &String) -> f64 {
         match self.get_holdings_map().get(ticker) {
             Some(holding) => holding.get_qty(),
@@ -192,7 +201,7 @@ impl AppState {
         }
     }
 
-    // After subtracting the open sell orders
+    // Calculate available shares after accounting for pending sell orders
     pub fn get_available_holdings_qty(&self, ticker: &String) -> f64 {
         let mut qty = self.get_ticker_holdings_qty(ticker);
         for o in &self.open_orders {
@@ -203,6 +212,7 @@ impl AppState {
         return qty;
     }
 
+    // Calculate available cash after accounting for pending buy orders
     pub fn get_available_cash(&self) -> f64 {
         let mut cash = self.cash_balance;
         for o in &self.open_orders {
@@ -213,10 +223,12 @@ impl AppState {
         return cash;
     }
 
+    // Get all pending orders
     pub fn get_open_orders(&self) -> Vec<OpenOrder> {
         self.open_orders.clone()
     }
 
+    // Add pending order to order book with validation
     pub fn add_open_order(&mut self, new_order: OpenOrder) {
         if new_order.get_side() == Side::Sell {
             // Check that you have enough to sell after accounting for the existing sell orders
@@ -236,6 +248,7 @@ impl AppState {
         println!("Open order added");
     }
 
+    // Remove pending order from order book
     pub fn remove_from_open_orders(&mut self, order_to_remove: OpenOrder) {
         self.open_orders.retain(|order| {
             !(order.get_symbol() == order_to_remove.get_symbol()
@@ -246,6 +259,7 @@ impl AppState {
     }
 }
 
+// Sort orders by timestamp then by price within same symbol/side
 fn open_order_sorting(order_arr: &mut Vec<OpenOrder>) {
     order_arr.sort_by_key(|o| o.get_timestamp());
 
@@ -261,6 +275,7 @@ fn open_order_sorting(order_arr: &mut Vec<OpenOrder>) {
     });
 }
 
+// Background thread that monitors and executes pending orders when conditions are met
 pub async fn monitor_order(state: Arc<Mutex<AppState>>, running: Arc<AtomicBool>) {
     // create a thread
     thread::spawn(move || {

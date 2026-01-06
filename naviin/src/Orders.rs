@@ -18,7 +18,9 @@ pub struct Trade {
     pub timestamp: i64,
 }
 
+// A completed transaction record for both market orders and executed conditional orders
 impl Trade {
+    // Create buy transaction record from immediate market order
     pub fn buy(symbol: String, quantity: f64, price_per: f64) -> Self {
         Self {
             symbol,
@@ -29,6 +31,7 @@ impl Trade {
         }
     }
 
+    // Create sell transaction record from immediate market order
     pub fn sell(symbol: String, quantity: f64, price_per: f64) -> Self {
         Self {
             symbol,
@@ -60,6 +63,7 @@ impl Trade {
     }
 }
 
+// Category of conditional order to create
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum OrderType {
     BuyLimit,
@@ -67,6 +71,7 @@ pub enum OrderType {
     TakeProfit,
 }
 
+// A pending order waiting for execution conditions to be met
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum OpenOrder {
     BuyLimit {
@@ -149,6 +154,7 @@ impl OpenOrder {
     }
 }
 
+// Factory function to create pending orders based on user input and order type
 pub fn create_order(order_type: OrderType) -> Option<OpenOrder> {
     let symbol = UserInput::ask_ticker()?;
     let quantity: f64 = UserInput::ask_quantity()?;
@@ -177,6 +183,7 @@ pub fn create_order(order_type: OrderType) -> Option<OpenOrder> {
     Some(order)
 }
 
+// Execute buy limit order when current price is at or below limit price
 pub async fn buy_limit(state: &mut AppState, order: &OpenOrder) -> bool {
     let symbol = order.get_symbol().clone();
     let limit_price = order.get_price_per();
@@ -196,6 +203,7 @@ pub async fn buy_limit(state: &mut AppState, order: &OpenOrder) -> bool {
     false
 }
 
+// Execute stop loss order when current price is at or below stop price to limit losses
 pub async fn sell_stop_loss(state: &mut AppState, order: &OpenOrder) -> bool {
     let symbol = order.get_symbol().clone();
     let limit_price = order.get_price_per();
@@ -211,6 +219,7 @@ pub async fn sell_stop_loss(state: &mut AppState, order: &OpenOrder) -> bool {
     false
 }
 
+// Execute take profit order when current price is at or above target price to lock in gains
 pub async fn sell_take_profit(state: &mut AppState, order: &OpenOrder) -> bool {
     let symbol = order.get_symbol().clone();
     let take_profit_price = order.get_price_per();
