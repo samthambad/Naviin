@@ -347,8 +347,8 @@ impl OpenOrder {
     pub fn get_side(&self) -> Side {
         match self {
             OpenOrder::BuyLimit { .. } => Side::Buy,
-            OpenOrder::StopLoss { .. } => Side::Buy,
-            OpenOrder::TakeProfit { .. } => Side::Buy,
+            OpenOrder::StopLoss { .. } => Side::Sell,
+            OpenOrder::TakeProfit { .. } => Side::Sell,
         }
     }
 }
