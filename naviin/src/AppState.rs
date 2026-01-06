@@ -75,7 +75,7 @@ impl AppState {
                 "----------------------------------------------------------------------------------"
             );
             for (symbol, holding) in &self.holdings {
-                let curr_price = FinanceProvider::previous_price_close(symbol, false).await;
+                let curr_price = FinanceProvider::curr_price(symbol, false).await;
                 let total_value = holding.get_qty() * curr_price;
                 let pnl = holding.get_pnl().await;
                 println!(
@@ -278,6 +278,7 @@ pub async fn monitor_order(state: Arc<Mutex<AppState>>, running: Arc<AtomicBool>
                     });
                 }
                 for o in orders_executed {
+                    println!("Open order executed: {}", o.get_symbol());
                     state_guard.remove_from_open_orders(o);
                 }
             }
