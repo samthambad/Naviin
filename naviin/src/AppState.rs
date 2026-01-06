@@ -7,8 +7,9 @@ use std::time::Duration;
 use chrono;
 use serde::{Deserialize, Serialize};
 
-use crate::Finance::{self, Holding, OpenOrder, OrderType, Side, Symbol, Trade};
+use crate::Finance::{Holding, Symbol};
 use crate::FinanceProvider;
+use crate::Orders::{OpenOrder, Side, Trade};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AppState {
@@ -278,7 +279,7 @@ pub async fn monitor_order(state: Arc<Mutex<AppState>>, running: Arc<AtomicBool>
                                 price: _,
                                 timestamp: _,
                             } => {
-                                if Finance::buy_limit(&mut state_guard, &o).await {
+                                if crate::Orders::buy_limit(&mut state_guard, &o).await {
                                     orders_executed.push(o);
                                 }
                             }
@@ -288,7 +289,7 @@ pub async fn monitor_order(state: Arc<Mutex<AppState>>, running: Arc<AtomicBool>
                                 price: _,
                                 timestamp: _,
                             } => {
-                                if Finance::sell_stop_loss(&mut state_guard, &o).await {
+                                if crate::Orders::sell_stop_loss(&mut state_guard, &o).await {
                                     orders_executed.push(o);
                                 }
                             }
@@ -298,7 +299,7 @@ pub async fn monitor_order(state: Arc<Mutex<AppState>>, running: Arc<AtomicBool>
                                 price: _,
                                 timestamp: _,
                             } => {
-                                if Finance::sell_take_profit(&mut state_guard, &o).await {
+                                if crate::Orders::sell_take_profit(&mut state_guard, &o).await {
                                     orders_executed.push(o);
                                 }
                             }
