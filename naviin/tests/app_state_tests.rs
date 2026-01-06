@@ -1,7 +1,7 @@
 // Import the AppState struct from our main naviin library.
 // The name of the crate is `naviin`, as defined in Cargo.toml.
 use naviin::AppState::AppState;
-use naviin::Finance::{OpenOrder, Side, Trade};
+use naviin::Orders::{OpenOrder, Side, Trade};
 
 #[test]
 fn test_deposit_and_balance() {
@@ -115,6 +115,9 @@ fn test_get_ticker_holdings_qty_empty() {
 fn test_add_open_order() {
     let mut state = AppState::new();
 
+    // Add funds for the buy order
+    state.deposit(20000.0);
+
     // Create a limit order manually
     let order = OpenOrder::new("AAPL".to_string(), 10.0, 150.0, Side::Buy);
 
@@ -131,6 +134,9 @@ fn test_add_open_order() {
 #[test]
 fn test_remove_from_open_orders() {
     let mut state = AppState::new();
+
+    // Add funds for the buy orders
+    state.deposit(50000.0);
 
     let order1 = OpenOrder::new("AAPL".to_string(), 10.0, 150.0, Side::Buy);
     let order2 = OpenOrder::new("GOOGL".to_string(), 5.0, 2800.0, Side::Buy);
@@ -166,9 +172,14 @@ fn test_default_trait() {
     let state = AppState::default();
     assert_eq!(state.check_balance(), 0.0);
 }
+
 #[test]
 fn test_order_removal_works_with_cloned_order() {
     let mut state = AppState::new();
+
+    // Add funds for the buy order
+    state.deposit(20000.0);
+
     let order = OpenOrder::new("AAPL".to_string(), 10.0, 150.0, Side::Buy);
     let order_copy = order.clone();
     state.add_open_order(order_copy);

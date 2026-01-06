@@ -1,6 +1,6 @@
-use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, sync::Arc, sync::Mutex};
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 use crate::{AppState::AppState, FinanceProvider, UserInput};
 
@@ -66,63 +66,6 @@ impl Holding {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub enum Side {
-    Buy,
-    Sell,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Trade {
-    symbol: Symbol,
-    quantity: f64,
-    price_per: f64,
-    side: Side,
-    timestamp: i64, // epoch seconds
-}
-
-impl Trade {
-    pub fn buy(symbol: Symbol, quantity: f64, price_per: f64) -> Self {
-        Self {
-            symbol,
-            quantity,
-            price_per,
-            side: Side::Buy,
-            timestamp: Utc::now().timestamp(),
-        }
-    }
-
-    pub fn sell(symbol: Symbol, quantity: f64, price_per: f64) -> Self {
-        Self {
-            symbol,
-            quantity,
-            price_per,
-            side: Side::Sell,
-            timestamp: Utc::now().timestamp(),
-        }
-    }
-
-    pub fn get_symbol(&self) -> &Symbol {
-        &self.symbol
-    }
-
-    pub fn get_quantity(&self) -> f64 {
-        self.quantity
-    }
-
-    pub fn get_price_per(&self) -> f64 {
-        self.price_per
-    }
-
-    pub fn get_side(&self) -> &Side {
-        &self.side
-    }
-
-    pub fn get_timestamp(&self) -> i64 {
-        self.timestamp
-    }
-}
-
 pub async fn buy(state: &Arc<Mutex<AppState>>) {
     let symbol = match UserInput::ask_ticker() {
         Some(t) => t,
@@ -142,76 +85,8 @@ pub async fn buy(state: &Arc<Mutex<AppState>>) {
     } else {
         state_guard.withdraw_purchase(total_price);
         add_to_holdings(&symbol, purchase_qty, curr_price, &mut state_guard).await;
-        state_guard.add_trade(Trade::buy(symbol, purchase_qty, curr_price));
+        state_guard.add_trade(crate::Orders::Trade::buy(symbol, purchase_qty, curr_price));
     }
-}
-
-pub async fn create_limit_order(ifBuy: bool) -> Option<OpenOrder> {
-    let ticker = match UserInput::ask_ticker() {
-        Some(t) => t,
-        None => return None,
-    };
-    let quantity: f64 = match UserInput::ask_quantity() {
-        Some(q) => q,
-        None => return None,
-    };
-    let limit_price: f64 = match UserInput::ask_price() {
-        Some(q) => q,
-        None => return None,
-    };
-    if ifBuy {
-        Some(OpenOrder {
-            symbol: ticker.clone(),
-            quantity,
-            price_per: limit_price,
-            side: Side::Buy,
-            timestamp: Utc::now().timestamp(),
-        })
-    } else {
-        Some(OpenOrder {
-            symbol: ticker.clone(),
-            quantity,
-            price_per: limit_price,
-            side: Side::Sell,
-            timestamp: Utc::now().timestamp(),
-        })
-    }
-}
-
-//  is good till cancelled
-pub async fn buy_limit(state: &mut AppState, order: &OpenOrder) -> bool {
-    let symbol = order.get_symbol().clone();
-    let limit_price = order.get_price_per();
-    let purchase_qty = order.get_qty();
-    let curr_cash = state.check_balance();
-    let curr_price: f64 = FinanceProvider::curr_price(&symbol, false).await;
-    let total_purchase_value = curr_price * purchase_qty;
-    if curr_price <= limit_price {
-        if total_purchase_value > curr_cash {
-            return false;
-        }
-        state.withdraw_purchase(total_purchase_value);
-        add_to_holdings(&symbol, purchase_qty, curr_price, state).await;
-        state.add_trade(Trade::buy(symbol, purchase_qty, curr_price));
-        return true;
-    }
-    false
-}
-
-pub async fn sell_stop_loss(state: &mut AppState, order: &OpenOrder) -> bool {
-    let symbol = order.get_symbol().clone();
-    let limit_price = order.get_price_per();
-    let sale_qty = order.get_qty();
-    let curr_price: f64 = FinanceProvider::curr_price(&symbol, false).await;
-    let total_sale_value = curr_price * sale_qty;
-
-    if curr_price <= limit_price {
-        state.deposit_sell(total_sale_value);
-        remove_from_holdings(&symbol, sale_qty, state).await;
-        state.add_trade(Trade::sell(symbol, sale_qty, curr_price));
-        return true;
-    }
-    false
 }
 
 pub async fn sell(state: &Arc<Mutex<AppState>>) {
@@ -235,21 +110,21 @@ pub async fn sell(state: &Arc<Mutex<AppState>>) {
         // add funds
         state_guard.deposit_sell(total_price);
         remove_from_holdings(&ticker, quantity, &mut (*state_guard)).await;
-        state_guard.add_trade(Trade::sell(ticker, quantity, curr_price));
+        state_guard.add_trade(crate::Orders::Trade::sell(ticker, quantity, curr_price));
     }
 }
 
-async fn add_to_holdings(ticker: &String, quantity: f64, price_per: f64, state: &mut AppState) {
+pub(crate) async fn add_to_holdings(ticker: &String, quantity: f64, price_per: f64, state: &mut AppState) {
     let mut prev_holdings_map: HashMap<Symbol, Holding> = state.get_holdings_map();
 
     // Use HashMap's get method to check if holding exists
     if let Some(existing_holding) = prev_holdings_map.get(ticker) {
         // Update existing holding with new average cost
-        let prev_avg_cost = existing_holding.get_avg_price();
-        let prev_qty = existing_holding.quantity;
-        let new_avg_cost =
+        let prev_avg_cost: f64 = existing_holding.get_avg_price();
+        let prev_qty: f64 = existing_holding.quantity;
+        let new_avg_cost: f64 =
             (prev_qty * prev_avg_cost + quantity * price_per) / (prev_qty + quantity);
-        let new_qty = prev_qty + quantity;
+        let new_qty: f64 = prev_qty + quantity;
 
         prev_holdings_map.insert(
             ticker.clone(),
@@ -265,13 +140,13 @@ async fn add_to_holdings(ticker: &String, quantity: f64, price_per: f64, state: 
     state.set_holdings_map(prev_holdings_map).await;
 }
 
-async fn remove_from_holdings(ticker: &String, quantity: f64, state: &mut AppState) {
+pub(crate) async fn remove_from_holdings(ticker: &String, quantity: f64, state: &mut AppState) {
     let mut prev_holdings_map: HashMap<Symbol, Holding> = state.get_holdings_map();
     if let Some(existing_holding) = prev_holdings_map.get(ticker) {
         // Update existing holding with new average cost
-        let prev_avg_cost = existing_holding.get_avg_price();
-        let prev_qty = existing_holding.quantity;
-        let new_qty = prev_qty - quantity;
+        let prev_avg_cost: f64 = existing_holding.get_avg_price();
+        let prev_qty: f64 = existing_holding.quantity;
+        let new_qty: f64 = prev_qty - quantity;
         if new_qty == 0.0 {
             prev_holdings_map.remove(ticker);
         } else {
@@ -281,42 +156,5 @@ async fn remove_from_holdings(ticker: &String, quantity: f64, state: &mut AppSta
             );
             state.set_holdings_map(prev_holdings_map).await;
         }
-    }
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct OpenOrder {
-    symbol: Symbol,
-    quantity: f64,
-    price_per: f64,
-    side: Side,
-    timestamp: i64,
-}
-
-impl OpenOrder {
-    pub fn new(symbol: Symbol, quantity: f64, price_per: f64, side: Side) -> Self {
-        Self {
-            symbol,
-            quantity,
-            price_per,
-            side,
-            timestamp: Utc::now().timestamp(),
-        }
-    }
-
-    pub fn get_symbol(&self) -> &Symbol {
-        &self.symbol
-    }
-    pub fn get_price_per(&self) -> f64 {
-        self.price_per
-    }
-    pub fn get_qty(&self) -> f64 {
-        self.quantity
-    }
-    pub fn get_timestamp(&self) -> i64 {
-        self.timestamp
-    }
-    pub fn get_side(&self) -> &Side {
-        &self.side
     }
 }

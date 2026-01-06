@@ -1,8 +1,8 @@
 use naviin::AppState::AppState;
-use naviin::Finance::{Holding, OpenOrder, Side, Trade};
+use naviin::Finance::Holding;
+use naviin::Orders::{OpenOrder, Side, Trade};
 use naviin::Storage;
 use std::sync::{Arc, Mutex};
-
 // ===== Integration Tests for AppState + Finance =====
 
 #[test]
@@ -29,6 +29,9 @@ fn test_complete_trading_workflow() {
 #[test]
 fn test_limit_order_management() {
     let mut state = AppState::new();
+
+    // Add funds for buy orders
+    state.deposit(100000.0);
 
     // Add multiple limit orders
     let order1 = OpenOrder::new("AAPL".to_string(), 10.0, 145.0, Side::Buy);
@@ -85,6 +88,7 @@ fn test_fund_withdraw_and_reset() {
     // Add some orders
     {
         let mut guard = state.lock().unwrap();
+        guard.deposit(20000.0);
         let order = OpenOrder::new("AAPL".to_string(), 10.0, 150.0, Side::Buy);
         guard.add_open_order(order);
     }
@@ -116,6 +120,9 @@ fn test_concurrent_balance_operations() {
 #[test]
 fn test_order_removal_with_multiple_identical_symbols() {
     let mut state = AppState::new();
+
+    // Add funds for buy orders
+    state.deposit(100000.0);
 
     // Add multiple orders for same symbol but different prices
     let order1 = OpenOrder::new("AAPL".to_string(), 10.0, 145.0, Side::Buy);
@@ -176,7 +183,7 @@ fn test_holding_initialization() {
 fn test_zero_balance_withdrawal_protection() {
     let mut state = AppState::new();
 
-    // Try to withdraw with zero balance
+    // Try to withdraw with zero balance - should fail validation
     state.withdraw(100.0);
 
     // Balance should remain zero due to insufficient funds check
@@ -186,6 +193,9 @@ fn test_zero_balance_withdrawal_protection() {
 #[test]
 fn test_order_removal_nonexistent_order() {
     let mut state = AppState::new();
+
+    // Add funds for buy order
+    state.deposit(20000.0);
 
     let order1 = OpenOrder::new("AAPL".to_string(), 10.0, 150.0, Side::Buy);
     let order2 = OpenOrder::new("GOOGL".to_string(), 5.0, 2800.0, Side::Buy);

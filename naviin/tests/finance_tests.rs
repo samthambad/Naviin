@@ -1,5 +1,6 @@
 use naviin::AppState::AppState;
-use naviin::Finance::{Holding, OpenOrder, Side, Trade};
+use naviin::Finance::Holding;
+use naviin::Orders::{OpenOrder, Side, Trade};
 
 // ===== Holding Tests =====
 
