@@ -58,8 +58,7 @@ async fn main() {
                 Storage::save_state(&state);
             }
             "buylimit" => {
-                let order_type = OrderType::BuyLimit;
-                let new_limit_order = Finance::create_order(order_type);
+                let new_limit_order = Finance::create_order(OrderType::BuyLimit);
                 if let Some(order) = new_limit_order {
                     {
                         let mut state_guard = state.lock().unwrap();
@@ -69,8 +68,7 @@ async fn main() {
                 }
             }
             "stoploss" => {
-                let order_type = OrderType::StopLoss;
-                let new_limit_order = Finance::create_order(order_type);
+                let new_limit_order = Finance::create_order(OrderType::StopLoss);
                 if let Some(order) = new_limit_order {
                     {
                         let mut state_guard = state.lock().unwrap();
@@ -80,8 +78,7 @@ async fn main() {
                 }
             }
             "takeprofit" => {
-                let order_type = OrderType::TakeProfit;
-                let new_limit_order = Finance::create_order(order_type);
+                let new_limit_order = Finance::create_order(OrderType::TakeProfit);
                 if let Some(order) = new_limit_order {
                     {
                         let mut state_guard = state.lock().unwrap();
