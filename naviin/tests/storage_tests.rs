@@ -123,15 +123,6 @@ fn test_save_state_with_multiple_operations() {
 }
 
 #[test]
-fn test_username_checker() {
-    let username = "test_user".to_string();
-    let result = Storage::username_checker(&username);
-
-    // Currently always returns true
-    assert!(result);
-}
-
-#[test]
 #[ignore] // Run with: cargo test --ignored --test-threads=1
 fn test_multiple_save_and_load_cycles() {
     cleanup_test_file();

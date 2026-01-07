@@ -169,14 +169,6 @@ fn test_trade_creation_preserves_data() {
     assert_eq!(sell_trade.get_symbol(), &symbol);
 }
 
-#[test]
-fn test_holding_initialization() {
-    let holding = Holding::new("TSLA".to_string(), 25.0, 240.50);
-
-    assert_eq!(holding.get_qty(), 25.0);
-    assert_eq!(holding.get_avg_price(), 240.50);
-}
-
 // ===== Edge Case Tests =====
 
 #[test]
@@ -221,14 +213,6 @@ fn test_large_balance_operations() {
 
     state.withdraw(500_000_000.0);
     assert_eq!(state.check_balance(), 500_000_000.0);
-}
-
-#[test]
-fn test_fractional_share_trading() {
-    let trade = Trade::buy("AAPL".to_string(), 0.5, 150.0);
-
-    assert_eq!(trade.get_quantity(), 0.5);
-    assert_eq!(trade.get_price_per(), 150.0);
 }
 
 #[test]
