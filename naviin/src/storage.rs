@@ -1,5 +1,6 @@
 use crate::AppState::AppState;
 use std::{fs, sync::Arc, sync::Mutex};
+use super::entities::app_state;
 
 const STATE_PATH: &str = "state.json";
 

@@ -2,3 +2,5 @@ target/
 state.json
 .idea
 plan.md
+.env
+db.sqlite

@@ -6,3 +6,4 @@ pub mod FinanceProvider;
 pub mod Orders;
 pub mod Storage;
 pub mod UserInput;
+pub mod entities;
