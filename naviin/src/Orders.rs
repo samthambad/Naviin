@@ -12,8 +12,8 @@ pub enum Side {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Trade {
     pub symbol: String,
-    pub quantity: f64,
-    pub price_per: f64,
+    pub quantity: Decimal,
+    pub price_per: Decimal,
     pub side: Side,
     pub timestamp: i64,
 }
@@ -76,20 +76,20 @@ pub enum OrderType {
 pub enum OpenOrder {
     BuyLimit {
         symbol: String,
-        quantity: f64,
-        price: f64,
+        quantity: Decimal,
+        price: Decimal,
         timestamp: i64,
     },
     StopLoss {
         symbol: String,
-        quantity: f64,
-        price: f64,
+        quantity: Decimal,
+        price: Decimal,
         timestamp: i64,
     },
     TakeProfit {
         symbol: String,
-        quantity: f64,
-        price: f64,
+        quantity: Decimal,
+        price: Decimal,
         timestamp: i64,
     },
 }
@@ -121,7 +121,7 @@ impl OpenOrder {
         }
     }
 
-    pub fn get_qty(&self) -> f64 {
+    pub fn get_qty(&self) -> Decimal {
         match self {
             OpenOrder::BuyLimit { quantity, .. } => *quantity,
             OpenOrder::StopLoss { quantity, .. } => *quantity,
@@ -129,7 +129,7 @@ impl OpenOrder {
         }
     }
 
-    pub fn get_price_per(&self) -> f64 {
+    pub fn get_price_per(&self) -> Decimal {
         match self {
             OpenOrder::BuyLimit { price, .. } => *price,
             OpenOrder::StopLoss { price, .. } => *price,
@@ -157,8 +157,8 @@ impl OpenOrder {
 // Factory function to create pending orders based on user input and order type
 pub fn create_order(order_type: OrderType) -> Option<OpenOrder> {
     let symbol = UserInput::ask_ticker()?;
-    let quantity: f64 = UserInput::ask_quantity()?;
-    let price: f64 = UserInput::ask_price()?;
+    let quantity = UserInput::ask_quantity()?;
+    let price = UserInput::ask_price()?;
 
     let order = match order_type {
         OrderType::BuyLimit => OpenOrder::BuyLimit {
