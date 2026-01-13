@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
+use rust_decimal::prelude::*;
 use chrono;
 use serde::{Deserialize, Serialize};
 
@@ -14,7 +15,7 @@ use crate::Orders::{OpenOrder, Side, Trade};
 // Manages user account state including cash, holdings, trades, and pending orders
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AppState {
-    cash_balance: f64,
+    cash_balance: Decimal,
     holdings: HashMap<Symbol, Holding>,
     trades: Vec<Trade>,
     open_orders: Vec<OpenOrder>,
@@ -29,20 +30,20 @@ impl Default for AppState {
 impl AppState {
     pub fn new() -> Self {
         Self {
-            cash_balance: 0.0,
+            cash_balance: Decimal::ZERO,
             holdings: HashMap::new(),
             trades: Vec::new(),
             open_orders: Vec::new(),
         }
     }
 
-    pub fn deposit(&mut self, amount: f64) {
+    pub fn deposit(&mut self, amount: Decimal) {
         self.cash_balance += amount;
     }
 
     // Withdraw funds with validation
-    pub fn withdraw(&mut self, amount: f64) {
-        if amount <= 0.0 {
+    pub fn withdraw(&mut self, amount: Decimal) {
+        if amount < Decimal::ZERO {
             println!("Invalid amount");
             return;
         }
@@ -54,8 +55,8 @@ impl AppState {
     }
 
     // Deduct purchase amount from balance without validation (used in buy functions)
-    pub fn withdraw_purchase(&mut self, amount: f64) {
-        if amount <= 0.0 {
+    pub fn withdraw_purchase(&mut self, amount: Decimal) {
+        if amount < Decimal::ZERO {
             println!("Invalid amount");
             return;
         }
@@ -63,13 +64,13 @@ impl AppState {
     }
 
     // Add sale proceeds to balance
-    pub fn deposit_sell(&mut self, amount: f64) {
+    pub fn deposit_sell(&mut self, amount: Decimal) {
         self.cash_balance += amount;
     }
 
     pub async fn display(&self) {
         println!("\n--- Naviin App State ---");
-        println!("Cash Balance: {:.2}", self.cash_balance);
+        println!("Cash Balance: {}", self.cash_balance);
 
         // Holdings Display
         if self.holdings.is_empty() {
@@ -88,7 +89,7 @@ impl AppState {
                 let total_value = holding.get_qty() * curr_price;
                 let pnl = holding.get_pnl().await;
                 println!(
-                    "{:<10} {:<10.2} {:<15.2} {:<15.2} {:<15.2} {:<15.2}",
+                    "{:<10} {:<10} {:<15} {:<15} {:<15} {:<15}",
                     symbol,
                     holding.get_qty(),
                     holding.get_avg_price(),
@@ -119,7 +120,7 @@ impl AppState {
                         })
                         .unwrap_or_else(|| order.get_timestamp().to_string());
                 println!(
-                    "{:<10} {:<6} {:<10.2} {:<12.2} {:<20}",
+                    "{:<10} {:<6} {:<10} {:<12} {:<20}",
                     order.get_symbol(),
                     match order.get_side() {
                         Side::Buy => "BUY",
@@ -153,7 +154,7 @@ impl AppState {
                         })
                         .unwrap_or_else(|| trade.get_timestamp().to_string());
                 println!(
-                    "{:<10} {:<6} {:<10.2} {:<12.2} {:<20}",
+                    "{:<10} {:<6} {:<10} {:<12} {:<20}",
                     trade.get_symbol(),
                     match trade.get_side() {
                         Side::Buy => "BUY",
@@ -171,7 +172,7 @@ impl AppState {
     }
 
     // Get current cash balance
-    pub fn check_balance(&self) -> f64 {
+    pub fn check_balance(&self) -> Decimal {
         self.cash_balance
     }
 
@@ -194,33 +195,33 @@ impl AppState {
     }
 
     // Get quantity of shares held for a specific ticker
-    pub fn get_ticker_holdings_qty(&self, ticker: &String) -> f64 {
+    pub fn get_ticker_holdings_qty(&self, ticker: &String) -> Decimal {
         match self.get_holdings_map().get(ticker) {
             Some(holding) => holding.get_qty(),
-            None => 0.0,
+            None => Decimal::ZERO,
         }
     }
 
     // Calculate available shares after accounting for pending sell orders
-    pub fn get_available_holdings_qty(&self, ticker: &String) -> f64 {
+    pub fn get_available_holdings_qty(&self, ticker: &String) -> Decimal {
         let mut qty = self.get_ticker_holdings_qty(ticker);
         for o in &self.open_orders {
             if o.get_side() == Side::Sell && o.get_symbol() == ticker {
                 qty -= o.get_qty();
             }
         }
-        return qty;
+        qty
     }
 
     // Calculate available cash after accounting for pending buy orders
-    pub fn get_available_cash(&self) -> f64 {
+    pub fn get_available_cash(&self) -> Decimal {
         let mut cash = self.cash_balance;
         for o in &self.open_orders {
             if o.get_side() == Side::Buy {
                 cash -= o.get_price_per() * o.get_qty();
             }
         }
-        return cash;
+        cash
     }
 
     // Get all pending orders
@@ -231,8 +232,8 @@ impl AppState {
     // Add pending order to order book with validation
     pub fn add_open_order(&mut self, new_order: OpenOrder) {
         if new_order.get_side() == Side::Sell {
-            // Check that you have enough to sell after accounting for the existing sell orders
-            if self.get_available_holdings_qty(new_order.get_symbol()) - new_order.get_qty() < 0.0 {
+            // Check that you have enough to sell after accounting for existing sell orders
+            if self.get_available_holdings_qty(new_order.get_symbol()) - new_order.get_qty() < Decimal::ZERO {
                 println!("You don't have enough of this to sell!");
                 return;
             }
@@ -268,9 +269,9 @@ fn open_order_sorting(order_arr: &mut Vec<OpenOrder>) {
             return std::cmp::Ordering::Equal;
         }
         return if a.get_side() == Side::Buy {
-            a.get_price_per().partial_cmp(&b.get_price_per()).unwrap()
+            a.get_price_per().cmp(&b.get_price_per())
         } else {
-            b.get_price_per().partial_cmp(&a.get_price_per()).unwrap()
+            b.get_price_per().cmp(&a.get_price_per())
         };
     });
 }
