@@ -1,4 +1,5 @@
 use std::io::{self, Write};
+use rust_decimal::Decimal;
 
 pub fn ask_ticker() -> Option<String> {
     loop {
@@ -25,7 +26,7 @@ pub fn ask_ticker() -> Option<String> {
     }
 }
 
-fn get_user_input_f64(prompt: &str, error_label: &str) -> Option<f64> {
+fn get_user_input_f64(prompt: &str, error_label: &str) -> Option<Decimal> {
     loop {
         print!("{}: ", prompt);
         io::stdout().flush().ok(); // Simplified for brevity
@@ -40,19 +41,19 @@ fn get_user_input_f64(prompt: &str, error_label: &str) -> Option<f64> {
             return None;
         }
 
-        match trimmed.parse::<f64>() {
-            Ok(num) if num > 0.0 => return Some(num),
+        match trimmed.parse::<Decimal>() {
+            Ok(num) if num > Decimal::ZERO => return Some(num),
             Ok(_) => println!("Please enter a positive {}.", error_label),
             Err(_) => println!("Invalid {}. Please try again.", error_label),
         }
     }
 }
 
-pub fn ask_quantity() -> Option<f64> {
+pub fn ask_quantity() -> Option<Decimal> {
     get_user_input_f64("Enter the quantity (or 'cancel' to go back)", "quantity")
 }
 
-pub fn ask_price() -> Option<f64> {
+pub fn ask_price() -> Option<Decimal> {
     get_user_input_f64("Enter the price (or 'cancel' to go back)", "price")
 }
 

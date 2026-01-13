@@ -28,7 +28,7 @@ async fn main() {
                 io::stdin()
                     .read_line(&mut fund_amount)
                     .expect("Invalid amount entered");
-                let fund_amount: f64 = fund_amount.trim().parse().unwrap();
+                let fund_amount = fund_amount.trim().parse().unwrap();
                 Finance::fund(&state, fund_amount).await;
                 Storage::save_state(&state);
             }
@@ -40,7 +40,7 @@ async fn main() {
                 io::stdin()
                     .read_line(&mut withdraw_amount)
                     .expect("Invalid amount entered");
-                let withdraw_amount: f64 = withdraw_amount.trim().parse().unwrap();
+                let withdraw_amount = withdraw_amount.trim().parse().unwrap();
                 Finance::withdraw(&state, withdraw_amount).await;
                 Storage::save_state(&state);
             }

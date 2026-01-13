@@ -65,32 +65,6 @@ impl Holding {
         let delta = curr_price - self.get_avg_price();
         delta * self.get_qty()
     }
-
-impl Holding {
-    pub fn new(name: String, quantity: f64, avg_cost: f64) -> Self {
-        Self {
-            name,
-            quantity,
-            avg_cost,
-        }
-    }
-
-    pub fn get_qty(&self) -> f64 {
-        self.quantity
-    }
-
-    pub fn get_avg_price(&self) -> f64 {
-        self.avg_cost
-    }
-
-    pub async fn get_pnl(&self) -> f64 {
-        // fetch current price
-        let curr_price = FinanceProvider::curr_price(&self.name, false).await;
-        // price delta per share
-        let delta = curr_price - self.get_avg_price();
-        // multiply by the shares owned
-        delta * self.get_qty()
-    }
 }
 
 // Asks user for input and calls Trade::buy
@@ -99,7 +73,7 @@ pub async fn create_buy(state: &Arc<Mutex<AppState>>) {
         Some(t) => t,
         None => return,
     };
-    let purchase_qty: f64 = match UserInput::ask_quantity() {
+    let purchase_qty= match UserInput::ask_quantity() {
         Some(q) => q,
         None => return,
     };
@@ -123,12 +97,12 @@ pub async fn create_sell(state: &Arc<Mutex<AppState>>) {
         Some(t) => t,
         None => return,
     };
-    let quantity: f64 = match UserInput::ask_quantity() {
+    let quantity = match UserInput::ask_quantity() {
         Some(q) => q,
         None => return,
     };
-    let curr_price: f64 = FinanceProvider::curr_price(&ticker, false).await;
-    let total_price: f64 = curr_price * quantity;
+    let curr_price= FinanceProvider::curr_price(&ticker, false).await;
+    let total_price = curr_price * quantity;
     println!("The total price of sale is: {total_price}");
 
     let mut state_guard = state.lock().unwrap();
@@ -186,5 +160,4 @@ pub(crate) async fn remove_from_holdings(ticker: &String, quantity: Decimal, sta
             state.set_holdings_map(prev_holdings_map).await;
         }
     }
-}
 }

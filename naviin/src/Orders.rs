@@ -1,5 +1,6 @@
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
+use rust_decimal::prelude::*;
 
 use crate::{AppState::AppState, FinanceProvider, UserInput};
 
@@ -21,7 +22,7 @@ pub struct Trade {
 // A completed transaction record for both market orders and executed conditional orders
 impl Trade {
     // Create buy transaction record from immediate market order
-    pub fn buy(symbol: String, quantity: f64, price_per: f64) -> Self {
+    pub fn buy(symbol: String, quantity: Decimal, price_per: Decimal) -> Self {
         Self {
             symbol,
             quantity,
@@ -32,7 +33,7 @@ impl Trade {
     }
 
     // Create sell transaction record from immediate market order
-    pub fn sell(symbol: String, quantity: f64, price_per: f64) -> Self {
+    pub fn sell(symbol: String, quantity: Decimal, price_per: Decimal) -> Self {
         Self {
             symbol,
             quantity,
@@ -46,11 +47,11 @@ impl Trade {
         &self.symbol
     }
 
-    pub fn get_quantity(&self) -> f64 {
+    pub fn get_quantity(&self) -> Decimal {
         self.quantity
     }
 
-    pub fn get_price_per(&self) -> f64 {
+    pub fn get_price_per(&self) -> Decimal {
         self.price_per
     }
 
@@ -95,7 +96,7 @@ pub enum OpenOrder {
 }
 
 impl OpenOrder {
-    pub fn new(symbol: String, quantity: f64, price: f64, side: Side) -> Self {
+    pub fn new(symbol: String, quantity: Decimal, price: Decimal, side: Side) -> Self {
         let timestamp = Utc::now().timestamp();
         match side {
             Side::Buy => OpenOrder::BuyLimit {
@@ -189,7 +190,7 @@ pub async fn buy_limit(state: &mut AppState, order: &OpenOrder) -> bool {
     let limit_price = order.get_price_per();
     let purchase_qty = order.get_qty();
     let curr_cash = state.check_balance();
-    let curr_price: f64 = FinanceProvider::curr_price(&symbol, false).await;
+    let curr_price = FinanceProvider::curr_price(&symbol, false).await;
     let total_purchase_value = curr_price * purchase_qty;
     if curr_price <= limit_price {
         if total_purchase_value > curr_cash {
@@ -208,7 +209,7 @@ pub async fn sell_stop_loss(state: &mut AppState, order: &OpenOrder) -> bool {
     let symbol = order.get_symbol().clone();
     let limit_price = order.get_price_per();
     let sale_qty = order.get_qty();
-    let curr_price: f64 = FinanceProvider::curr_price(&symbol, false).await;
+    let curr_price = FinanceProvider::curr_price(&symbol, false).await;
     let total_sale_value = curr_price * sale_qty;
     if curr_price <= limit_price {
         state.deposit_sell(total_sale_value);
@@ -224,7 +225,7 @@ pub async fn sell_take_profit(state: &mut AppState, order: &OpenOrder) -> bool {
     let symbol = order.get_symbol().clone();
     let take_profit_price = order.get_price_per();
     let sale_qty = order.get_qty();
-    let curr_price: f64 = FinanceProvider::curr_price(&symbol, false).await;
+    let curr_price = FinanceProvider::curr_price(&symbol, false).await;
     let total_sale_value = take_profit_price * sale_qty;
     if curr_price >= take_profit_price {
         state.deposit_sell(total_sale_value);
