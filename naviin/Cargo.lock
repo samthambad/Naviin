@@ -1699,6 +1699,7 @@ name = "naviin"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "dotenvy",
  "migration",
  "rust_decimal",
  "sea-orm",

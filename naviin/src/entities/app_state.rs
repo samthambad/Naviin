@@ -15,3 +15,18 @@ pub struct Model {
 pub enum Relation {}
 
 impl ActiveModelBehavior for ActiveModel {}
+
+/*
+# Need to add a new column? Example: add "notes" to holdings
+# 1. Edit migration
+nano naviin/migration/src/m20220101_000001_create_table.rs
+# Add: .col(string(Holding::Notes))
+# 2. Re-run migration
+cd naviin/migration
+cargo run
+# 3. Re-generate entities
+cd naviin
+sea-orm-cli generate entity \
+-u sqlite://db.sqlite \
+-o src/entities
+ */

@@ -1,13 +1,20 @@
-use std::io;
+use dotenvy::dotenv;
 use std::io::Write;
 use std::sync::{Arc, atomic::AtomicBool};
+use std::{env, io};
 // Import everything from the `naviin` library crate
-use naviin::{AppState::monitor_order, Finance, FinanceProvider, Storage, UserInput};
 use naviin::Orders::{self, OrderType};
+use naviin::{AppState::monitor_order, Finance, FinanceProvider, Storage, UserInput};
+use sea_orm::{Database, DatabaseConnection};
 
 #[tokio::main]
 async fn main() {
     // let mut username = String::new();
+    dotenv().ok();
+    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set in .env");
+    let db: DatabaseConnection = Database::connect(database_url)
+        .await
+        .expect("Failed to connect to database");
     let state = Storage::load_state();
     let running = Arc::new(AtomicBool::new(true));
     let running_clone = running.clone();
