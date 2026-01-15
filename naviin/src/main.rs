@@ -37,7 +37,7 @@ async fn main() {
                     .expect("Invalid amount entered");
                 let fund_amount = fund_amount.trim().parse().unwrap();
                 Finance::fund(&state, fund_amount).await;
-                Storage::save_state(&state);
+                Storage::save_state(&state, &db).await;
             }
             "display" => state.lock().unwrap().display().await,
             "withdraw" => {
@@ -49,7 +49,7 @@ async fn main() {
                     .expect("Invalid amount entered");
                 let withdraw_amount = withdraw_amount.trim().parse().unwrap();
                 Finance::withdraw(&state, withdraw_amount).await;
-                Storage::save_state(&state);
+                Storage::save_state(&state, &db).await;
             }
             "price" => {
                 if let Some(ticker) = UserInput::ask_ticker() {
@@ -58,11 +58,11 @@ async fn main() {
             }
             "buy" => {
                 Finance::create_buy(&state).await;
-                Storage::save_state(&state);
+                Storage::save_state(&state, &db).await;
             }
             "sell" => {
                 Finance::create_sell(&state).await;
-                Storage::save_state(&state);
+                Storage::save_state(&state, &db).await;
             }
             "buylimit" => {
                 if let Some(order) = Orders::create_order(OrderType::BuyLimit) {
@@ -70,7 +70,7 @@ async fn main() {
                         let mut state_guard = state.lock().unwrap();
                         state_guard.add_open_order(order);
                     }
-                    Storage::save_state(&state);
+                    Storage::save_state(&state, &db).await;
                 }
             }
             "stoploss" => {
@@ -79,7 +79,7 @@ async fn main() {
                         let mut state_guard = state.lock().unwrap();
                         state_guard.add_open_order(order);
                     }
-                    Storage::save_state(&state);
+                    Storage::save_state(&state, &db).await;
                 }
             }
             "takeprofit" => {
@@ -88,7 +88,7 @@ async fn main() {
                         let mut state_guard = state.lock().unwrap();
                         state_guard.add_open_order(order);
                     }
-                    Storage::save_state(&state);
+                    Storage::save_state(&state, &db).await;
                 }
             }
             "stopbg" => {
@@ -101,14 +101,15 @@ async fn main() {
                 running.store(true, std::sync::atomic::Ordering::Relaxed);
                 println!("Background orders resumed execution");
             }
-            "reset" => Storage::default_state(&state),
+            "reset" => Storage::default_state(&state, &db).await,
             "help" => UserInput::display_help(),
             "exit" => {
                 running.store(false, std::sync::atomic::Ordering::Relaxed);
-                Storage::save_state(&state);
+                Storage::save_state(&state, &db).await;
                 break;
             }
             _ => println!("Wrong command entered"),
         }
     }
+    db.close().await.expect("Failed to close database");
 }
