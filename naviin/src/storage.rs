@@ -1,7 +1,12 @@
 use crate::AppState::AppState;
 use std::{fs, sync::Arc, sync::Mutex};
-use sea_orm::{DatabaseConnection, EntityTrait, Set, ActiveModelTrait, IntoActiveModel};
+use sea_orm::{DatabaseConnection, EntityTrait, Set, ActiveModelTrait, IntoActiveModel, NotSet, TransactionTrait, DbErr};
+use migration::OnConflict;
 use super::entities::app_state::Entity as AppStateEntity;
+use super::entities::holding::Entity as HoldingEntity;
+use super::entities::holding::ActiveModel as HoldingActiveModel;
+use super:: entities::holding::Column as HoldingColumn;
+
 
 const STATE_PATH: &str = "state.json";
 
@@ -12,20 +17,23 @@ pub fn username_checker(username: &String) -> bool {
 
 pub async fn save_state(state: &Arc<Mutex<AppState>>, db: &DatabaseConnection) {
     // No cloning of arc mutex needed here, only required for threads
-    let state_guard = state.lock().unwrap();
-    match AppStateEntity::find_by_id(1).one(db).await {
-        Ok(Some(model)) => {
-            let mut active_model = model.into_active_model();
-            active_model.cash_balance = Set(state_guard.get_available_cash());
-            active_model.updated_at = Set(chrono::Utc::now().timestamp());
-            if let Err(e) = active_model.update(db).await {
-                eprintln!("Failed to update database: {e}");
-            }
-            // todo: save the other fields as needed
-        },
-        Ok(None) => {eprintln!("Record not found")}
-        Err(e) => {eprintln!("Database error: {e}.")},
-    }
+    // get relevant data first to not block more than required
+    let (cash, current_holdings) = {
+        let state_guard = state.lock().unwrap();
+        let cash = state_guard.get_available_cash();
+
+        // Collect holdings into a vector of simple data tuples
+        let holdings = state_guard.get_holdings_map()
+            .iter()
+            .map(|(symbol, holding)| (symbol.clone(), holding.get_qty(), holding.get_avg_price()))
+            .collect::<Vec<_>>();
+
+        (cash, holdings)
+    };
+
+    let txn_result = db.transaction::<_,_, DbErr>(|txn|)
+
+
 }
 
 pub fn load_state() -> Arc<Mutex<AppState>> {
