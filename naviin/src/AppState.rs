@@ -193,6 +193,10 @@ impl AppState {
         new_trades.push(trade_to_add);
         self.trades = new_trades;
     }
+    
+    pub fn get_trades(&self) -> Vec<Trade> {
+        self.trades.clone()
+    }
 
     // Get quantity of shares held for a specific ticker
     pub fn get_ticker_holdings_qty(&self, ticker: &String) -> Decimal {
