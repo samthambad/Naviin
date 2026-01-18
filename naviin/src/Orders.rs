@@ -12,11 +12,11 @@ pub enum Side {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Trade {
-    pub symbol: String,
-    pub quantity: Decimal,
-    pub price_per: Decimal,
-    pub side: Side,
-    pub timestamp: i64,
+    symbol: String,
+    quantity: Decimal,
+    price_per: Decimal,
+    side: Side,
+    timestamp: i64,
 }
 
 // A completed transaction record for both market orders and executed conditional orders
