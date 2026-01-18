@@ -1,3 +1,4 @@
+use super::entities::app_state::ActiveModel as AppStateActiveModel;
 use super::entities::app_state::Entity as AppStateEntity;
 use super::entities::holding::ActiveModel as HoldingActiveModel;
 use super::entities::holding::Column as HoldingColumn;
@@ -9,11 +10,9 @@ use super::entities::trade::Entity as TradeEntity;
 use crate::AppState::AppState;
 use crate::Finance::Holding;
 use crate::Orders::{OpenOrder, Side, Trade};
-use crate::entities::open_order;
-use migration::OnConflict;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, Database, DatabaseConnection, DatabaseTransaction, DbErr,
-    EntityTrait, IntoActiveModel, NotSet, QueryFilter, QuerySelect, Set, TransactionTrait,
+    EntityTrait, IntoActiveModel, NotSet, QueryFilter, Set, TransactionTrait,
 };
 use std::{collections::HashMap, env, sync::Arc, sync::Mutex};
 
@@ -201,7 +200,12 @@ pub async fn save_state(state: &Arc<Mutex<AppState>>, db: &DatabaseConnection) {
                     active_model.updated_at = Set(chrono::Utc::now().timestamp());
                     active_model.update(txn).await?;
                 } else {
-                    eprintln!("AppState row not found during saving")
+                    let new_app_state = AppStateActiveModel {
+                        id: Set(1),
+                        cash_balance: Set(cash),
+                        updated_at: Set(chrono::Utc::now().timestamp()),
+                    };
+                    new_app_state.insert(txn).await?;
                 }
 
                 sync_holdings(txn, &current_holdings).await?;
