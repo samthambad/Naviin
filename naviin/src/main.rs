@@ -15,7 +15,7 @@ async fn main() {
     let db: DatabaseConnection = Database::connect(database_url)
         .await
         .expect("Failed to connect to database");
-    let state = Storage::load_state();
+    let state = Storage::load_state().await;
     let running = Arc::new(AtomicBool::new(true));
     let running_clone = running.clone();
     monitor_order(state.clone(), running_clone).await;
