@@ -62,6 +62,10 @@ impl Trade {
     pub fn get_timestamp(&self) -> i64 {
         self.timestamp
     }
+
+    pub fn set_timestamp(&mut self, timestamp: i64) {
+        self.timestamp = timestamp;
+    }
 }
 
 // Category of conditional order to create
