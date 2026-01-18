@@ -176,6 +176,10 @@ impl AppState {
         self.cash_balance
     }
 
+    pub fn set_cash_balance(&mut self, new_balance: Decimal) {
+        self.cash_balance = new_balance;
+    }
+
     // Get all holdings as copy of internal map
     pub fn get_holdings_map(&self) -> HashMap<Symbol, Holding> {
         self.holdings.clone()
@@ -191,6 +195,10 @@ impl AppState {
     pub fn add_trade(&mut self, trade_to_add: Trade) {
         let mut new_trades = self.trades.clone();
         new_trades.push(trade_to_add);
+        self.trades = new_trades;
+    }
+    
+    pub fn set_trades(&mut self, new_trades: Vec<Trade>) {
         self.trades = new_trades;
     }
     
@@ -231,6 +239,11 @@ impl AppState {
     // Get all pending orders
     pub fn get_open_orders(&self) -> Vec<OpenOrder> {
         self.open_orders.clone()
+    }
+
+    pub fn set_open_orders(&mut self, new_open_orders: Vec<OpenOrder>) {
+        self.open_orders = new_open_orders;
+        open_order_sorting(&mut self.open_orders);
     }
 
     // Add pending order to order book with validation
