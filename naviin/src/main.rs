@@ -1,14 +1,21 @@
-use std::io;
+use dotenvy::dotenv;
 use std::io::Write;
 use std::sync::{Arc, atomic::AtomicBool};
+use std::{env, io};
 // Import everything from the `naviin` library crate
-use naviin::{AppState::monitor_order, Finance, FinanceProvider, Storage, UserInput};
 use naviin::Orders::{self, OrderType};
+use naviin::{AppState::monitor_order, Finance, FinanceProvider, Storage, UserInput};
+use sea_orm::{Database, DatabaseConnection};
 
 #[tokio::main]
 async fn main() {
     // let mut username = String::new();
-    let state = Storage::load_state();
+    dotenv().ok();
+    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set in .env");
+    let db: DatabaseConnection = Database::connect(database_url)
+        .await
+        .expect("Failed to connect to database");
+    let state = Storage::load_state().await;
     let running = Arc::new(AtomicBool::new(true));
     let running_clone = running.clone();
     monitor_order(state.clone(), running_clone).await;
@@ -28,9 +35,9 @@ async fn main() {
                 io::stdin()
                     .read_line(&mut fund_amount)
                     .expect("Invalid amount entered");
-                let fund_amount: f64 = fund_amount.trim().parse().unwrap();
+                let fund_amount = fund_amount.trim().parse().unwrap();
                 Finance::fund(&state, fund_amount).await;
-                Storage::save_state(&state);
+                Storage::save_state(&state, &db).await;
             }
             "display" => state.lock().unwrap().display().await,
             "withdraw" => {
@@ -40,9 +47,9 @@ async fn main() {
                 io::stdin()
                     .read_line(&mut withdraw_amount)
                     .expect("Invalid amount entered");
-                let withdraw_amount: f64 = withdraw_amount.trim().parse().unwrap();
+                let withdraw_amount = withdraw_amount.trim().parse().unwrap();
                 Finance::withdraw(&state, withdraw_amount).await;
-                Storage::save_state(&state);
+                Storage::save_state(&state, &db).await;
             }
             "price" => {
                 if let Some(ticker) = UserInput::ask_ticker() {
@@ -51,11 +58,11 @@ async fn main() {
             }
             "buy" => {
                 Finance::create_buy(&state).await;
-                Storage::save_state(&state);
+                Storage::save_state(&state, &db).await;
             }
             "sell" => {
                 Finance::create_sell(&state).await;
-                Storage::save_state(&state);
+                Storage::save_state(&state, &db).await;
             }
             "buylimit" => {
                 if let Some(order) = Orders::create_order(OrderType::BuyLimit) {
@@ -63,7 +70,7 @@ async fn main() {
                         let mut state_guard = state.lock().unwrap();
                         state_guard.add_open_order(order);
                     }
-                    Storage::save_state(&state);
+                    Storage::save_state(&state, &db).await;
                 }
             }
             "stoploss" => {
@@ -72,7 +79,7 @@ async fn main() {
                         let mut state_guard = state.lock().unwrap();
                         state_guard.add_open_order(order);
                     }
-                    Storage::save_state(&state);
+                    Storage::save_state(&state, &db).await;
                 }
             }
             "takeprofit" => {
@@ -81,7 +88,7 @@ async fn main() {
                         let mut state_guard = state.lock().unwrap();
                         state_guard.add_open_order(order);
                     }
-                    Storage::save_state(&state);
+                    Storage::save_state(&state, &db).await;
                 }
             }
             "stopbg" => {
@@ -94,14 +101,15 @@ async fn main() {
                 running.store(true, std::sync::atomic::Ordering::Relaxed);
                 println!("Background orders resumed execution");
             }
-            "reset" => Storage::default_state(&state),
+            "reset" => Storage::default_state(&state, &db).await,
             "help" => UserInput::display_help(),
             "exit" => {
                 running.store(false, std::sync::atomic::Ordering::Relaxed);
-                Storage::save_state(&state);
+                Storage::save_state(&state, &db).await;
                 break;
             }
             _ => println!("Wrong command entered"),
         }
     }
+    db.close().await.expect("Failed to close database");
 }

@@ -1,5 +1,6 @@
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
+use rust_decimal::prelude::*;
 
 use crate::{AppState::AppState, FinanceProvider, UserInput};
 
@@ -11,17 +12,17 @@ pub enum Side {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Trade {
-    pub symbol: String,
-    pub quantity: f64,
-    pub price_per: f64,
-    pub side: Side,
-    pub timestamp: i64,
+    symbol: String,
+    quantity: Decimal,
+    price_per: Decimal,
+    side: Side,
+    timestamp: i64,
 }
 
 // A completed transaction record for both market orders and executed conditional orders
 impl Trade {
     // Create buy transaction record from immediate market order
-    pub fn buy(symbol: String, quantity: f64, price_per: f64) -> Self {
+    pub fn buy(symbol: String, quantity: Decimal, price_per: Decimal) -> Self {
         Self {
             symbol,
             quantity,
@@ -32,7 +33,7 @@ impl Trade {
     }
 
     // Create sell transaction record from immediate market order
-    pub fn sell(symbol: String, quantity: f64, price_per: f64) -> Self {
+    pub fn sell(symbol: String, quantity: Decimal, price_per: Decimal) -> Self {
         Self {
             symbol,
             quantity,
@@ -46,11 +47,11 @@ impl Trade {
         &self.symbol
     }
 
-    pub fn get_quantity(&self) -> f64 {
+    pub fn get_quantity(&self) -> Decimal {
         self.quantity
     }
 
-    pub fn get_price_per(&self) -> f64 {
+    pub fn get_price_per(&self) -> Decimal {
         self.price_per
     }
 
@@ -60,6 +61,10 @@ impl Trade {
 
     pub fn get_timestamp(&self) -> i64 {
         self.timestamp
+    }
+
+    pub fn set_timestamp(&mut self, timestamp: i64) {
+        self.timestamp = timestamp;
     }
 }
 
@@ -76,26 +81,26 @@ pub enum OrderType {
 pub enum OpenOrder {
     BuyLimit {
         symbol: String,
-        quantity: f64,
-        price: f64,
+        quantity: Decimal,
+        price: Decimal,
         timestamp: i64,
     },
     StopLoss {
         symbol: String,
-        quantity: f64,
-        price: f64,
+        quantity: Decimal,
+        price: Decimal,
         timestamp: i64,
     },
     TakeProfit {
         symbol: String,
-        quantity: f64,
-        price: f64,
+        quantity: Decimal,
+        price: Decimal,
         timestamp: i64,
     },
 }
 
 impl OpenOrder {
-    pub fn new(symbol: String, quantity: f64, price: f64, side: Side) -> Self {
+    pub fn new(symbol: String, quantity: Decimal, price: Decimal, side: Side) -> Self {
         let timestamp = Utc::now().timestamp();
         match side {
             Side::Buy => OpenOrder::BuyLimit {
@@ -121,7 +126,7 @@ impl OpenOrder {
         }
     }
 
-    pub fn get_qty(&self) -> f64 {
+    pub fn get_qty(&self) -> Decimal {
         match self {
             OpenOrder::BuyLimit { quantity, .. } => *quantity,
             OpenOrder::StopLoss { quantity, .. } => *quantity,
@@ -129,7 +134,7 @@ impl OpenOrder {
         }
     }
 
-    pub fn get_price_per(&self) -> f64 {
+    pub fn get_price_per(&self) -> Decimal {
         match self {
             OpenOrder::BuyLimit { price, .. } => *price,
             OpenOrder::StopLoss { price, .. } => *price,
@@ -152,13 +157,21 @@ impl OpenOrder {
             OpenOrder::TakeProfit { .. } => Side::Sell,
         }
     }
+
+    pub fn get_order_type(&self) -> &str {
+        match self {
+            OpenOrder::BuyLimit { .. } => "BuyLimit",
+            OpenOrder::StopLoss { .. } => "StopLoss",
+            OpenOrder::TakeProfit { .. } => "TakeProfit",
+        }
+    }
 }
 
 // Factory function to create pending orders based on user input and order type
 pub fn create_order(order_type: OrderType) -> Option<OpenOrder> {
     let symbol = UserInput::ask_ticker()?;
-    let quantity: f64 = UserInput::ask_quantity()?;
-    let price: f64 = UserInput::ask_price()?;
+    let quantity = UserInput::ask_quantity()?;
+    let price = UserInput::ask_price()?;
 
     let order = match order_type {
         OrderType::BuyLimit => OpenOrder::BuyLimit {
@@ -189,7 +202,7 @@ pub async fn buy_limit(state: &mut AppState, order: &OpenOrder) -> bool {
     let limit_price = order.get_price_per();
     let purchase_qty = order.get_qty();
     let curr_cash = state.check_balance();
-    let curr_price: f64 = FinanceProvider::curr_price(&symbol, false).await;
+    let curr_price = FinanceProvider::curr_price(&symbol, false).await;
     let total_purchase_value = curr_price * purchase_qty;
     if curr_price <= limit_price {
         if total_purchase_value > curr_cash {
@@ -208,7 +221,7 @@ pub async fn sell_stop_loss(state: &mut AppState, order: &OpenOrder) -> bool {
     let symbol = order.get_symbol().clone();
     let limit_price = order.get_price_per();
     let sale_qty = order.get_qty();
-    let curr_price: f64 = FinanceProvider::curr_price(&symbol, false).await;
+    let curr_price = FinanceProvider::curr_price(&symbol, false).await;
     let total_sale_value = curr_price * sale_qty;
     if curr_price <= limit_price {
         state.deposit_sell(total_sale_value);
@@ -224,7 +237,7 @@ pub async fn sell_take_profit(state: &mut AppState, order: &OpenOrder) -> bool {
     let symbol = order.get_symbol().clone();
     let take_profit_price = order.get_price_per();
     let sale_qty = order.get_qty();
-    let curr_price: f64 = FinanceProvider::curr_price(&symbol, false).await;
+    let curr_price = FinanceProvider::curr_price(&symbol, false).await;
     let total_sale_value = take_profit_price * sale_qty;
     if curr_price >= take_profit_price {
         state.deposit_sell(total_sale_value);

@@ -1,7 +1,7 @@
 use rust_decimal::prelude::*;
 use yfinance_rs::{Ticker, YfClient};
 
-pub async fn previous_price_close(symbol: &String, print: bool) -> f64 {
+pub async fn previous_price_close(symbol: &String, print: bool) -> Decimal {
     let client = YfClient::default();
     let ticker = Ticker::new(&client, symbol);
 
@@ -11,21 +11,21 @@ pub async fn previous_price_close(symbol: &String, print: bool) -> f64 {
                 if print {
                     println!("Previous close: {price}");
                 }
-                price.amount().to_f64().unwrap()
+                price.amount()
             }
             None => {
                 eprintln!("{symbol} -> previous close unavailable");
-                0.0
+                Decimal::ZERO
             }
         },
         Err(err) => {
             eprintln!("Failed to fetch {symbol} quote: {err}");
-            0.0
+            Decimal::ZERO
         }
     }
 }
 
-pub async fn curr_price(symbol: &String, print: bool) -> f64 {
+pub async fn curr_price(symbol: &String, print: bool) -> Decimal {
     let client = YfClient::default();
     let ticker = Ticker::new(&client, symbol);
 
@@ -35,16 +35,16 @@ pub async fn curr_price(symbol: &String, print: bool) -> f64 {
                 if print {
                     println!("Current price: {price}");
                 }
-                price.amount().to_f64().unwrap()
+                price.amount()
             }
             None => {
                 eprintln!("Current price unavailable for {symbol}");
-                0.0
+                Decimal::ZERO
             }
         },
         Err(err) => {
             eprintln!("Failed to fetch current price for {symbol}: {err}");
-            0.0
+            Decimal::ZERO
         }
     }
 }

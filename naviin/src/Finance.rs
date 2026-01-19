@@ -1,12 +1,13 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use rust_decimal::prelude::*;
 
 use crate::{AppState::AppState, FinanceProvider, UserInput};
 
 // Add funds to user account
-pub async fn fund(state: &Arc<Mutex<AppState>>, amount: f64) {
-    if amount <= 0.0 {
+pub async fn fund(state: &Arc<Mutex<AppState>>, amount: Decimal) {
+    if amount < Decimal::ZERO {
         println!("Invalid amount");
         return;
     }
@@ -18,9 +19,9 @@ pub async fn fund(state: &Arc<Mutex<AppState>>, amount: f64) {
 }
 
 // Withdraw funds from user account if sufficient balance available
-pub async fn withdraw(state: &Arc<Mutex<AppState>>, amount: f64) {
+pub async fn withdraw(state: &Arc<Mutex<AppState>>, amount: Decimal) {
     let mut state_guard = state.lock().unwrap();
-    if amount <= 0.0 {
+    if amount < Decimal::ZERO {
         println!("Invalid amount");
         return;
     }
@@ -38,12 +39,12 @@ pub type Symbol = String;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Holding {
     name: String,
-    quantity: f64,
-    avg_cost: f64,
+    quantity: Decimal,
+    avg_cost: Decimal,
 }
 
 impl Holding {
-    pub fn new(name: String, quantity: f64, avg_cost: f64) -> Self {
+    pub fn new(name: String, quantity: Decimal, avg_cost: Decimal) -> Self {
         Self {
             name,
             quantity,
@@ -51,20 +52,17 @@ impl Holding {
         }
     }
 
-    pub fn get_qty(&self) -> f64 {
+    pub fn get_qty(&self) -> Decimal {
         self.quantity
     }
 
-    pub fn get_avg_price(&self) -> f64 {
+    pub fn get_avg_price(&self) -> Decimal {
         self.avg_cost
     }
 
-    pub async fn get_pnl(&self) -> f64 {
-        // fetch current price
+    pub async fn get_pnl(&self) -> Decimal {
         let curr_price = FinanceProvider::curr_price(&self.name, false).await;
-        // price delta per share
         let delta = curr_price - self.get_avg_price();
-        // multiply by the shares owned
         delta * self.get_qty()
     }
 }
@@ -75,12 +73,12 @@ pub async fn create_buy(state: &Arc<Mutex<AppState>>) {
         Some(t) => t,
         None => return,
     };
-    let purchase_qty: f64 = match UserInput::ask_quantity() {
+    let purchase_qty= match UserInput::ask_quantity() {
         Some(q) => q,
         None => return,
     };
-    let curr_price: f64 = FinanceProvider::curr_price(&symbol, false).await;
-    let total_price: f64 = curr_price * purchase_qty;
+    let curr_price = FinanceProvider::curr_price(&symbol, false).await;
+    let total_price = curr_price * purchase_qty;
 
     let mut state_guard = state.lock().unwrap();
     println!("The total price is: {total_price}");
@@ -99,12 +97,12 @@ pub async fn create_sell(state: &Arc<Mutex<AppState>>) {
         Some(t) => t,
         None => return,
     };
-    let quantity: f64 = match UserInput::ask_quantity() {
+    let quantity = match UserInput::ask_quantity() {
         Some(q) => q,
         None => return,
     };
-    let curr_price: f64 = FinanceProvider::curr_price(&ticker, false).await;
-    let total_price: f64 = curr_price * quantity;
+    let curr_price= FinanceProvider::curr_price(&ticker, false).await;
+    let total_price = curr_price * quantity;
     println!("The total price of sale is: {total_price}");
 
     let mut state_guard = state.lock().unwrap();
@@ -120,17 +118,16 @@ pub async fn create_sell(state: &Arc<Mutex<AppState>>) {
 }
 
 // Update or create holding with new purchase, calculating average cost
-pub(crate) async fn add_to_holdings(ticker: &String, quantity: f64, price_per: f64, state: &mut AppState) {
+pub(crate) async fn add_to_holdings(ticker: &String, quantity: Decimal, price_per: Decimal, state: &mut AppState) {
     let mut prev_holdings_map: HashMap<Symbol, Holding> = state.get_holdings_map();
 
     // Use HashMap's get method to check if holding exists
     if let Some(existing_holding) = prev_holdings_map.get(ticker) {
-        // Update existing holding with new average cost
-        let prev_avg_cost: f64 = existing_holding.get_avg_price();
-        let prev_qty: f64 = existing_holding.quantity;
-        let new_avg_cost: f64 =
+        let prev_avg_cost = existing_holding.get_avg_price();
+        let prev_qty = existing_holding.quantity;
+        let new_avg_cost =
             (prev_qty * prev_avg_cost + quantity * price_per) / (prev_qty + quantity);
-        let new_qty: f64 = prev_qty + quantity;
+        let new_qty = prev_qty + quantity;
 
         prev_holdings_map.insert(
             ticker.clone(),
@@ -147,14 +144,13 @@ pub(crate) async fn add_to_holdings(ticker: &String, quantity: f64, price_per: f
 }
 
 // Reduce or remove holding after sale, keeping average cost unchanged
-pub(crate) async fn remove_from_holdings(ticker: &String, quantity: f64, state: &mut AppState) {
+pub(crate) async fn remove_from_holdings(ticker: &String, quantity: Decimal, state: &mut AppState) {
     let mut prev_holdings_map: HashMap<Symbol, Holding> = state.get_holdings_map();
     if let Some(existing_holding) = prev_holdings_map.get(ticker) {
-        // Update existing holding with new average cost
-        let prev_avg_cost: f64 = existing_holding.get_avg_price();
-        let prev_qty: f64 = existing_holding.quantity;
-        let new_qty: f64 = prev_qty - quantity;
-        if new_qty == 0.0 {
+        let prev_avg_cost = existing_holding.get_avg_price();
+        let prev_qty = existing_holding.quantity;
+        let new_qty = prev_qty - quantity;
+        if new_qty == Decimal::ZERO {
             prev_holdings_map.remove(ticker);
         } else {
             prev_holdings_map.insert(
