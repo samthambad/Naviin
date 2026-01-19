@@ -108,21 +108,34 @@ async fn sync_holdings(
 }
 
 async fn sync_trades(txn: &DatabaseTransaction, trades: &[Trade]) -> Result<(), DbErr> {
+    let existing_trades = TradeEntity::find().all(txn).await?;
+
     for trade in trades {
         let side_str = match trade.get_side() {
             Side::Buy => "Buy",
             Side::Sell => "Sell",
         };
-        let db_trade = TradeActiveModel {
-            id: NotSet,
-            symbol: Set(trade.get_symbol().clone()),
-            quantity: Set(trade.get_quantity()),
-            price_per: Set(trade.get_price_per()),
-            side: Set(side_str.to_string()),
-            order_type: Set("Market".to_string()),
-            timestamp: Set(trade.get_timestamp()),
-        };
-        db_trade.insert(txn).await?;
+
+        let already_exists = existing_trades.iter().any(|t| {
+            t.symbol == *trade.get_symbol()
+                && t.quantity == trade.get_quantity()
+                && t.price_per == trade.get_price_per()
+                && t.side == side_str
+                && t.timestamp == trade.get_timestamp()
+        });
+
+        if !already_exists {
+            let db_trade = TradeActiveModel {
+                id: NotSet,
+                symbol: Set(trade.get_symbol().clone()),
+                quantity: Set(trade.get_quantity()),
+                price_per: Set(trade.get_price_per()),
+                side: Set(side_str.to_string()),
+                order_type: Set("Market".to_string()),
+                timestamp: Set(trade.get_timestamp()),
+            };
+            db_trade.insert(txn).await?;
+        }
     }
     Ok(())
 }
@@ -131,6 +144,8 @@ async fn sync_open_orders(
     txn: &DatabaseTransaction,
     open_orders: &[OpenOrder],
 ) -> Result<(), DbErr> {
+    OpenOrderEntity::delete_many().exec(txn).await?;
+
     for open_order in open_orders {
         let (order_type_str, symbol, quantity, price, timestamp) = match open_order {
             OpenOrder::BuyLimit {
@@ -175,7 +190,7 @@ pub async fn save_state(state: &Arc<Mutex<AppState>>, db: &DatabaseConnection) {
     // get relevant data first to not block more than required
     let (cash, current_holdings, trades, open_orders) = {
         let state_guard = state.lock().unwrap();
-        let cash = state_guard.get_available_cash();
+        let cash = state_guard.check_balance();
 
         // Collect holdings into a vector of simple data tuples
         let holdings = state_guard
@@ -215,7 +230,8 @@ pub async fn save_state(state: &Arc<Mutex<AppState>>, db: &DatabaseConnection) {
                 Ok(())
             })
         })
-        .await;
+        .await
+        .ok();
 }
 
 pub async fn load_state() -> Arc<Mutex<AppState>> {
@@ -258,5 +274,18 @@ pub async fn default_state(state: &Arc<Mutex<AppState>>, db: &DatabaseConnection
         let mut state_guard = state.lock().unwrap();
         *state_guard = AppState::new();
     }
+
+    let _ = db
+        .transaction::<_, _, DbErr>(|txn| {
+            Box::pin(async move {
+                AppStateEntity::delete_many().exec(txn).await?;
+                HoldingEntity::delete_many().exec(txn).await?;
+                TradeEntity::delete_many().exec(txn).await?;
+                OpenOrderEntity::delete_many().exec(txn).await?;
+                Ok(())
+            })
+        })
+        .await;
+
     save_state(state, db).await;
 }
