@@ -157,6 +157,14 @@ impl OpenOrder {
             OpenOrder::TakeProfit { .. } => Side::Sell,
         }
     }
+
+    pub fn get_order_type(&self) -> &str {
+        match self {
+            OpenOrder::BuyLimit { .. } => "BuyLimit",
+            OpenOrder::StopLoss { .. } => "StopLoss",
+            OpenOrder::TakeProfit { .. } => "TakeProfit",
+        }
+    }
 }
 
 // Factory function to create pending orders based on user input and order type

@@ -64,14 +64,6 @@ impl MigrationTrait for Migration {
         Ok(())
     }
 
-    // async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-    //     // Replace the sample below with your own migration scripts
-    //     todo!();
-    //
-    //     manager
-    //         .drop_table(Table::drop().table(Post::Table).to_owned())
-    //         .await
-    // }
 }
 
 #[derive(DeriveIden)]

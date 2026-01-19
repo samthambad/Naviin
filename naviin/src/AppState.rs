@@ -106,8 +106,8 @@ impl AppState {
         } else {
             println!("\nOPEN ORDERS:");
             println!(
-                "{:<10} {:<6} {:<10} {:<12} {:<20}",
-                "Symbol", "Side", "Qty", "Price/Share", "Timestamp"
+                "{:<10} {:<8} {:<6} {:<10} {:<12} {:<20}",
+                "Symbol", "Type", "Side", "Qty", "Price/Share", "Timestamp"
             );
             println!("------------------------------------------------------------------");
             for order in &self.open_orders {
@@ -120,8 +120,9 @@ impl AppState {
                         })
                         .unwrap_or_else(|| order.get_timestamp().to_string());
                 println!(
-                    "{:<10} {:<6} {:<10} {:<12} {:<20}",
+                    "{:<10} {:<8} {:<6} {:<10} {:<12} {:<20}",
                     order.get_symbol(),
+                    order.get_order_type(),
                     match order.get_side() {
                         Side::Buy => "BUY",
                         Side::Sell => "SELL",
@@ -188,7 +189,6 @@ impl AppState {
     // Update holdings and refresh display
     pub async fn set_holdings_map(&mut self, new_holdings_map: HashMap<Symbol, Holding>) {
         self.holdings = new_holdings_map;
-        self.display().await;
     }
 
     // Add completed trade to history
