@@ -1,4 +1,3 @@
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use rust_decimal::prelude::*;
@@ -36,7 +35,7 @@ pub async fn withdraw(state: &Arc<Mutex<AppState>>, amount: Decimal) {
 pub type Symbol = String;
 
 // Represents owned stock position with quantity and average purchase cost
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug)]
 pub struct Holding {
     name: String,
     quantity: Decimal,

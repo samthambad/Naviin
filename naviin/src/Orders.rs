@@ -1,16 +1,15 @@
 use chrono::Utc;
-use serde::{Deserialize, Serialize};
 use rust_decimal::prelude::*;
 
 use crate::{AppState::AppState, FinanceProvider, UserInput};
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Side {
     Buy,
     Sell,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug)]
 pub struct Trade {
     symbol: String,
     quantity: Decimal,
@@ -79,7 +78,7 @@ impl Trade {
 }
 
 // Category of conditional order to create
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug)]
 pub enum OrderType {
     BuyLimit,
     StopLoss,
@@ -87,7 +86,7 @@ pub enum OrderType {
 }
 
 // A pending order waiting for execution conditions to be met
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug)]
 pub enum OpenOrder {
     BuyLimit {
         symbol: String,

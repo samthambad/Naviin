@@ -6,14 +6,13 @@ use std::time::Duration;
 
 use rust_decimal::prelude::*;
 use chrono;
-use serde::{Deserialize, Serialize};
 
 use crate::Finance::{Holding, Symbol};
 use crate::FinanceProvider;
 use crate::Orders::{OpenOrder, Side, Trade};
 
 // Manages user account state including cash, holdings, trades, and pending orders
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct AppState {
     cash_balance: Decimal,
     holdings: HashMap<Symbol, Holding>,

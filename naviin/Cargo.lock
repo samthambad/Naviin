@@ -1700,11 +1700,8 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "dotenvy",
- "migration",
  "rust_decimal",
  "sea-orm",
- "serde",
- "serde_json",
  "tokio",
  "yfinance-rs",
 ]
