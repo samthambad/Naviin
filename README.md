@@ -8,9 +8,8 @@ Naviin delivers real-time multi-asset monitoring (equities, ETFs, FX, commoditie
 
 - **Real-time Market Data**: Multi-asset price fetching (Equities, ETFs, FX, and Commodities) via financial APIs.
 - **Portfolio Tracking**: Multi-asset holdings with automatic average cost basis, real-time P&L, and performance metrics.
-- **Simulated Trading**: Virtual buy/sell execution with limit order monitoring in a non-blocking background task.
-- **Transaction History**: Detailed, timestamped logging of all trades.
-- **State Persistence**: JSON-based serialization for seamless session continuity (planned migration to SQL).
+- **Advanced Order Execution**: Support for Limit, Stop-Loss, and Take-Profit orders.
+- **Persistent Relational Storage**: SQL-based persistence (SQLite + SeaORM) for session continuity and trade history.
 - **Concurrency-Safe Design**: Thread-safe state using `Arc<Mutex<>>`, `AtomicBool`, and Tokio for reliable background processing.
 
 ## Roadmap & Future Vision
@@ -18,9 +17,9 @@ Naviin delivers real-time multi-asset monitoring (equities, ETFs, FX, commoditie
 Naviin is evolving from a paper trading tool into a robust platform for financial research and strategy development. The roadmap is structured into three progressive tiers:
 
 ### Phase 1: Institutional-Grade Foundations
-- Advanced Order Execution: Stop-Loss and Take-Profit orders.
-- Persistent Relational Storage: Migration to SQL for scalable trade history.
-- Transaction Modeling: Configurable commissions and fees for realistic performance simulation.
+- [x] Advanced Order Execution: Stop-Loss and Take-Profit orders.
+- [x] Persistent Relational Storage: Migration to SQL for scalable trade history.
+- [ ] Transaction Modeling: Configurable commissions and fees for realistic performance simulation.
 
 ### Phase 2: Technical Analysis & Strategy Engine
 - Dividend tracking
@@ -31,7 +30,6 @@ Naviin is evolving from a paper trading tool into a robust platform for financia
 
 - **Core Language**: Rust (latest stable)
 - **Async Runtime**: Tokio
-- **Serialization**: Serde + serde_json (SQL migration planned)
 - **Market Data**: `yfinance-rs` (current); extensible abstraction layer
 - **Concurrency Primitives**: `std::sync::Arc`, `Mutex`, `AtomicBool`
 
@@ -41,7 +39,7 @@ Modular, separation-of-concerns design:
 - `AppState` – Centralized, thread-safe state
 - `Finance` – Trade execution, P&L, portfolio logic
 - `FinanceProvider` – Market data abstraction
-- `Storage` – Persistence layer (JSON → future SQL)
+- `Storage` – Relational persistence layer (SQLite via SeaORM)
 - `UserInput` – Interactive CLI loop
 
 ## Getting Started
