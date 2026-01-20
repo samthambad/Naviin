@@ -23,8 +23,10 @@ Naviin is evolving from a paper trading tool into a robust platform for financia
 
 ### Phase 2: Technical Analysis & Strategy Engine
 - Dividend tracking
+- ...
 
 ### Phase 3: Quantitative Research Platform
+- ...
 
 ## Tech Stack
 
