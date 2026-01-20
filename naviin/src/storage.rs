@@ -38,13 +38,12 @@ async fn load_trades(db: &DatabaseConnection) -> Result<Vec<Trade>, DbErr> {
     let trades: Vec<Trade> = trades_models
         .into_iter()
         .map(|t| {
-            let mut trade = match t.side.as_str() {
-                "Buy" => Trade::buy(t.symbol, t.quantity, t.price_per),
-                "Sell" => Trade::sell(t.symbol, t.quantity, t.price_per),
+            let side = match t.side.as_str() {
+                "Buy" => Side::Buy,
+                "Sell" => Side::Sell,
                 _ => panic!("Unknown trade side: {}", t.side),
             };
-            trade.set_timestamp(t.timestamp);
-            trade
+            Trade::from_database(t.symbol, t.quantity, t.price_per, side, t.timestamp)
         })
         .collect();
     Ok(trades)

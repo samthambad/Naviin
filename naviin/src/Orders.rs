@@ -66,6 +66,16 @@ impl Trade {
     pub fn set_timestamp(&mut self, timestamp: i64) {
         self.timestamp = timestamp;
     }
+
+    pub fn from_database(symbol: String, quantity: Decimal, price_per: Decimal, side: Side, timestamp: i64) -> Self {
+        Self {
+            symbol,
+            quantity,
+            price_per,
+            side,
+            timestamp,
+        }
+    }
 }
 
 // Category of conditional order to create
