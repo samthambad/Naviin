@@ -29,22 +29,20 @@ pub async fn curr_price(symbol: &String, print: bool) -> Decimal {
     let client = YfClient::default();
     let ticker = Ticker::new(&client, symbol);
 
-    match ticker.quote().await {
-        Ok(quote) => match quote.price{
+    match ticker.fast_info().await {
+        Ok(fast) => match fast.last {
             Some(price) => {
+                let amt = price.amount();
                 if print {
-                    println!("Current price: {price}");
+                    println!("Current price: {amt}");
                 }
-                price.amount()
-            }
+                amt }
             None => {
-                eprintln!("Current price unavailable for {symbol}");
-                Decimal::ZERO
-            }
+                eprintln!("{symbol} -> current price unavailable");
+                Decimal::ZERO }
         },
         Err(err) => {
-            eprintln!("Failed to fetch current price for {symbol}: {err}");
-            Decimal::ZERO
-        }
+            eprintln!("Failed to fetch {symbol} fast info: {err}");
+            Decimal::ZERO }
     }
 }
