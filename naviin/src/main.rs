@@ -56,6 +56,24 @@ async fn main() {
                     FinanceProvider::curr_price(&ticker, true).await;
                 }
             }
+            "watch" => {
+                if let Some(ticker) = UserInput::ask_ticker() {
+                    {
+                        let mut state_guard = state.lock().unwrap();
+                        state_guard.add_to_watchlist(ticker);
+                    }
+                    Storage::save_state(&state, &db).await;
+                }
+            }
+            "unwatch" => {
+                if let Some(ticker) = UserInput::ask_ticker() {
+                    {
+                        let mut state_guard = state.lock().unwrap();
+                        state_guard.remove_from_watchlist(ticker);
+                    }
+                    Storage::save_state(&state, &db).await;
+                }
+            }
             "buy" => {
                 Finance::create_buy(&state).await;
                 Storage::save_state(&state, &db).await;

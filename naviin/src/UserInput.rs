@@ -69,6 +69,8 @@ pub fn display_help() {
     println!("  stopbg            - Stop open orders from running execution in the background.");
     println!("  display           - Show your current cash balance, holdings, and their unrealized P&L.");
     println!("  price             - Get the current market price for a specified stock ticker.");
+    println!("  watch             - Add a stock to your watchlist.");
+    println!("  unwatch           - Remove a stock from your watchlist.");
     println!("  reset             - Clear all your financial data and start fresh.");
     println!("  exit              - Save your session and exit the application.");
     println!("  help              - Display this help message.");
