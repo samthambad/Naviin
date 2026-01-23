@@ -6,3 +6,4 @@ pub mod app_state;
 pub mod holding;
 pub mod open_order;
 pub mod trade;
+pub mod watchlist;
