@@ -6,6 +6,9 @@ use std::{env, io};
 use naviin::Orders::{self, OrderType};
 use naviin::{AppState::monitor_order, Finance, FinanceProvider, Storage, UserInput};
 use sea_orm::{Database, DatabaseConnection};
+use crossterm::terminal::{enable_raw_mode, disable_raw_mode};
+use crossterm::event::{self, Event, KeyCode};
+use std::time::Duration;
 
 #[tokio::main]
 async fn main() {
@@ -22,10 +25,51 @@ async fn main() {
     loop {
         print!("What would you like to do today? ");
         io::stdout().flush().unwrap();
+
         let mut command = String::new();
-        io::stdin()
-            .read_line(&mut command)
-            .expect("Invalid command entered");
+        
+        // Manual input buffering in Raw Mode for instant 'd'
+        if let Ok(_) = enable_raw_mode() {
+            loop {
+                if let Ok(Event::Key(key_event)) = event::read() {
+                    match key_event.code {
+                        // Instant 'D' trigger if it's the very first key
+                        KeyCode::Char('D') if command.is_empty() => {
+                            println!("D\r");
+                            command = "display".to_string();
+                            break;
+                        }
+                        // Echo other characters and add to buffer
+                        KeyCode::Char(c) => {
+                            command.push(c);
+                            print!("{}", c);
+                            io::stdout().flush().unwrap();
+                        }
+                        KeyCode::Backspace => {
+                            if !command.is_empty() {
+                                command.pop();
+                                // Move back, overwrite with space, move back again
+                                print!("\x08 \x08");
+                                io::stdout().flush().unwrap();
+                            }
+                        }
+                        KeyCode::Enter => {
+                            println!("\r");
+                            break;
+                        }
+                        KeyCode::Esc => {
+                            command = "exit".to_string();
+                            break;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            let _ = disable_raw_mode();
+        } else {
+            io::stdin().read_line(&mut command).expect("Failed to read line");
+        }
+
         command = command.trim().to_string();
         match command.as_str() {
             "fund" => {
@@ -39,7 +83,7 @@ async fn main() {
                 Finance::fund(&state, fund_amount).await;
                 Storage::save_state(&state, &db).await;
             }
-            "display" => state.lock().unwrap().display().await,
+            "display" | "D" => state.lock().unwrap().display().await,
             "withdraw" => {
                 print!("Amount: ");
                 io::stdout().flush().unwrap();
