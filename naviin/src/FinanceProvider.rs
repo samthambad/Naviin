@@ -1,5 +1,7 @@
 use rust_decimal::prelude::*;
-use yfinance_rs::{Ticker, YfClient, StreamBuilder, StreamMethod};
+use yfinance_rs::{Ticker, YfClient};
+use crossterm::event::{self, Event, KeyCode};
+use std::time::Duration;
 
 pub async fn previous_price_close(symbol: &String, print: bool) -> Decimal {
     let client = YfClient::default();
@@ -53,13 +55,17 @@ pub async fn stream_watchlist(symbols: Vec<String>) {
         return;
     }
 
-    println!("\nStreaming live updates (Polling every 5s). Press Ctrl+C to exit.");
+    use crossterm::terminal::{enable_raw_mode, disable_raw_mode};
+    
+    println!("\nStreaming live updates (Polling every 5s).");
+    println!("Press 'x' to stop streaming.");
     println!("{:<10} {:<15} {:<20}", "Symbol", "Price", "Timestamp");
     println!("--------------------------------------------------");
 
     let client = YfClient::default();
 
     loop {
+        // Poll prices
         for sym in &symbols {
             let ticker = Ticker::new(&client, sym);
             let time = chrono::Local::now().format("%H:%M:%S");
@@ -79,8 +85,25 @@ pub async fn stream_watchlist(symbols: Vec<String>) {
             }
         }
         
-        // Sleep for 5 seconds before next poll
-        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
-        println!("---"); // Separator for readability
+        println!("---");
+
+        // Wait 5 seconds, but check for 'x' keypress during that time
+        let start_wait = std::time::Instant::now();
+        while start_wait.elapsed() < Duration::from_secs(5) {
+            // Enable raw mode to capture keypresses without Enter
+            if let Ok(_) = enable_raw_mode() {
+                if event::poll(Duration::from_millis(100)).unwrap_or(false) {
+                    if let Ok(Event::Key(key_event)) = event::read() {
+                        if let KeyCode::Char('x') | KeyCode::Char('X') = key_event.code {
+                            let _ = disable_raw_mode();
+                            println!("Exiting stream...");
+                            return;
+                        }
+                    }
+                }
+                let _ = disable_raw_mode();
+            }
+            tokio::task::yield_now().await;
+        }
     }
 }

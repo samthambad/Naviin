@@ -57,6 +57,23 @@ pub fn ask_price() -> Option<Decimal> {
     get_user_input_f64("Enter the price (or 'cancel' to go back)", "price")
 }
 
+pub async fn check_input_now() -> io::Result<String> {
+    use tokio::io::AsyncBufReadExt;
+    let mut reader = tokio::io::BufReader::new(tokio::io::stdin());
+    let mut line = String::new();
+    
+    // We use a select with a small timeout to check if stdin has data
+    // without blocking the caller indefinitely
+    tokio::select! {
+        result = reader.read_line(&mut line) => {
+            result.map(|_| line)
+        }
+        _ = tokio::time::sleep(tokio::time::Duration::from_millis(10)) => {
+            Err(io::Error::new(io::ErrorKind::WouldBlock, "No input available"))
+        }
+    }
+}
+
 pub fn display_help() {
     println!("Available Commands:");
     println!("  fund              - Deposit funds into your account.");
