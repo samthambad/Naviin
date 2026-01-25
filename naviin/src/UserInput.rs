@@ -1,5 +1,5 @@
-use std::io::{self, Write};
 use rust_decimal::Decimal;
+use std::io::{self, Write};
 
 pub fn ask_ticker() -> Option<String> {
     loop {
@@ -67,9 +67,12 @@ pub fn display_help() {
     println!("  stoploss          - Sell shares of a stock when price <= your limit price, good till cancelled.");
     println!("  startbg           - Allow open orders to run execution in the background.");
     println!("  stopbg            - Stop open orders from running execution in the background.");
-    println!("  display           - Show your current cash balance, holdings, and their unrealized P&L.");
+    println!(
+        "  display           - Show your current cash balance, holdings, and their unrealized P&L."
+    );
     println!("  price             - Get the current market price for a specified stock ticker.");
-    println!("  watch             - Add a stock to your watchlist.");
+    println!("  watch             - Display live price updates for stocks in your watchlist.");
+    println!("  addwatch          - Add a stock to your watchlist.");
     println!("  unwatch           - Remove a stock from your watchlist.");
     println!("  reset             - Clear all your financial data and start fresh.");
     println!("  exit              - Save your session and exit the application.");
