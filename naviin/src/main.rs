@@ -57,6 +57,13 @@ async fn main() {
                 }
             }
             "watch" => {
+                let watchlist = {
+                    let state_guard = state.lock().unwrap();
+                    state_guard.get_watchlist()
+                };
+                FinanceProvider::stream_watchlist(watchlist).await;
+            }
+            "addwatch" => {
                 if let Some(ticker) = UserInput::ask_ticker() {
                     {
                         let mut state_guard = state.lock().unwrap();
