@@ -2,6 +2,7 @@ use rust_decimal::prelude::*;
 use yfinance_rs::{Ticker, YfClient};
 use crossterm::event::{self, Event, KeyCode};
 use std::time::Duration;
+use std::io::Write;
 
 pub async fn previous_price_close(symbol: &String, print: bool) -> Decimal {
     let client = YfClient::default();
@@ -56,16 +57,31 @@ pub async fn stream_watchlist(symbols: Vec<String>) {
     }
 
     use crossterm::terminal::{enable_raw_mode, disable_raw_mode};
+    use crossterm::cursor;
+    use crossterm::execute;
     
     println!("\nStreaming live updates (Polling every 5s).");
-    println!("Press 'x' to stop streaming.");
+    println!("Press 'x' to stop streaming.\n");
     println!("{:<10} {:<15} {:<20}", "Symbol", "Price", "Timestamp");
     println!("--------------------------------------------------");
 
     let client = YfClient::default();
+    let num_symbols = symbols.len();
+    let mut first_iteration = true;
 
     loop {
-        // Poll prices
+        // Move cursor up to overwrite previous prices (skip on first iteration)
+        if !first_iteration {
+            if let Ok(_) = execute!(
+                std::io::stdout(),
+                cursor::MoveUp(num_symbols as u16)
+            ) {
+                // Success - we're updating in place
+            }
+        }
+        first_iteration = false;
+
+        // Poll and print prices
         for sym in &symbols {
             let ticker = Ticker::new(&client, sym);
             let time = chrono::Local::now().format("%H:%M:%S");
@@ -73,19 +89,19 @@ pub async fn stream_watchlist(symbols: Vec<String>) {
             match ticker.fast_info().await {
                 Ok(fast) => match fast.last {
                     Some(price) => {
-                        println!("{:<10} {:<15.2} {:<20}", sym, price.amount(), time);
+                        // Clear the line and print updated price
+                        print!("\r{:<10} {:<15.2} {:<20}\n", sym, price.amount(), time);
                     }
                     None => {
-                        println!("{:<10} {:<15} {:<20}", sym, "N/A", time);
+                        print!("\r{:<10} {:<15} {:<20}\n", sym, "N/A", time);
                     }
                 },
                 Err(_) => {
-                    println!("{:<10} {:<15} {:<20}", sym, "Error", time);
+                    print!("\r{:<10} {:<15} {:<20}\n", sym, "Error", time);
                 }
             }
+            std::io::stdout().flush().unwrap();
         }
-        
-        println!("---");
 
         // Wait 5 seconds, but check for 'x' keypress during that time
         let start_wait = std::time::Instant::now();
@@ -96,7 +112,7 @@ pub async fn stream_watchlist(symbols: Vec<String>) {
                     if let Ok(Event::Key(key_event)) = event::read() {
                         if let KeyCode::Char('x') | KeyCode::Char('X') = key_event.code {
                             let _ = disable_raw_mode();
-                            println!("Exiting stream...");
+                            println!("\nExiting stream...");
                             return;
                         }
                     }
