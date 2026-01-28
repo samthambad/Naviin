@@ -16,13 +16,14 @@ Naviin delivers real-time multi-asset monitoring (equities, ETFs, FX, commoditie
 
 Naviin is evolving from a paper trading tool into a robust platform for financial research and strategy development. The roadmap is structured into three progressive tiers:
 
-### Phase 1: Institutional-Grade Foundations
+### Phase 1:
 - [x] Advanced Order Execution: Stop-Loss and Take-Profit orders.
 - [x] Persistent Relational Storage: Migration to SQL for scalable trade history.
-- [ ] Transaction Modeling: Configurable commissions and fees for realistic performance simulation.
+- [ ] Better User Experience
 
 ### Phase 2: Technical Analysis & Strategy Engine
 - Dividend tracking
+- Transaction Modeling: Configurable commissions and fees for realistic performance simulation.
 - ...
 
 ### Phase 3: Quantitative Research Platform

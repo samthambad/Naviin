@@ -112,7 +112,7 @@ pub async fn stream_watchlist(symbols: Vec<String>) {
                     if let Ok(Event::Key(key_event)) = event::read() {
                         if let KeyCode::Char('x') | KeyCode::Char('X') = key_event.code {
                             let _ = disable_raw_mode();
-                            println!("\nExiting stream...");
+                            println!("\nExiting live prices...");
                             return;
                         }
                     }

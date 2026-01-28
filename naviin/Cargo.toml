@@ -14,3 +14,4 @@ yfinance-rs = "0.7.2"
 sea-orm = { version = "2.0.0-rc", features = [ "sqlx-sqlite", "runtime-tokio-rustls", "debug-print", "macros" ] }
 dotenvy = "0.15.7"
 crossterm = "0.29.0"
+ratatui = "0.30.0"
