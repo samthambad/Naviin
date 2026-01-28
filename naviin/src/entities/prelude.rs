@@ -4,5 +4,6 @@ pub use super::app_state::Entity as AppState;
 pub use super::holding::Entity as Holding;
 pub use super::open_order::Entity as OpenOrder;
 pub use super::trade::Entity as Trade;
+pub use super::watchlist::Entity as Watchlist;
 
 pub use rust_decimal::Decimal;

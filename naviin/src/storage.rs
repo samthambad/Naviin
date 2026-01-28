@@ -7,8 +7,10 @@ use super::entities::open_order::ActiveModel as OpenOrderActiveModel;
 use super::entities::open_order::Entity as OpenOrderEntity;
 use super::entities::trade::ActiveModel as TradeActiveModel;
 use super::entities::trade::Entity as TradeEntity;
+use super::entities::watchlist::ActiveModel as WatchlistActiveModel;
+use super::entities::watchlist::Entity as WatchlistEntity;
 use crate::AppState::AppState;
-use crate::Finance::Holding;
+use crate::Finance::{Holding, Symbol};
 use crate::Orders::{OpenOrder, Side, Trade};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, Database, DatabaseConnection, DatabaseTransaction, DbErr,
@@ -179,6 +181,28 @@ async fn sync_open_orders(
     Ok(())
 }
 
+async fn load_watchlist(db: &DatabaseConnection) -> Result<Vec<Symbol>, DbErr> {
+    let watchlist_models = WatchlistEntity::find().all(db).await?;
+    let watchlist: Vec<Symbol> = watchlist_models.into_iter().map(|w| w.symbol).collect();
+    Ok(watchlist)
+}
+
+async fn sync_watchlist(
+    txn: &DatabaseTransaction,
+    watchlist: &[Symbol],
+) -> Result<(), DbErr> {
+    WatchlistEntity::delete_many().exec(txn).await?;
+
+    for symbol in watchlist {
+        let db_watchlist = WatchlistActiveModel {
+            id: NotSet,
+            symbol: Set(symbol.clone()),
+        };
+        db_watchlist.insert(txn).await?;
+    }
+    Ok(())
+}
+
 pub fn username_checker(username: &String) -> bool {
     println!("Validating username: {username} against storage");
     true
@@ -187,7 +211,7 @@ pub fn username_checker(username: &String) -> bool {
 pub async fn save_state(state: &Arc<Mutex<AppState>>, db: &DatabaseConnection) {
     // No cloning of arc mutex needed here, only required for threads
     // get relevant data first to not block more than required
-    let (cash, current_holdings, trades, open_orders) = {
+    let (cash, current_holdings, trades, open_orders, watchlist) = {
         let state_guard = state.lock().unwrap();
         let cash = state_guard.check_balance();
 
@@ -201,10 +225,11 @@ pub async fn save_state(state: &Arc<Mutex<AppState>>, db: &DatabaseConnection) {
         let trades = state_guard.get_trades();
 
         let open_orders = state_guard.get_open_orders();
-        (cash, holdings, trades, open_orders)
+        let watchlist = state_guard.get_watchlist();
+        (cash, holdings, trades, open_orders, watchlist)
     };
 
-    let txn_result = db
+    let _txn_result = db
         .transaction::<_, _, DbErr>(|txn| {
             Box::pin(async move {
                 let app_state_opt = AppStateEntity::find_by_id(1).one(txn).await?;
@@ -225,6 +250,7 @@ pub async fn save_state(state: &Arc<Mutex<AppState>>, db: &DatabaseConnection) {
                 sync_holdings(txn, &current_holdings).await?;
                 sync_trades(txn, &trades).await?;
                 sync_open_orders(txn, &open_orders).await?;
+                sync_watchlist(txn, &watchlist).await?;
 
                 Ok(())
             })
@@ -243,12 +269,14 @@ pub async fn load_state() -> Arc<Mutex<AppState>> {
                 let holdings_map = load_holdings(&db).await.unwrap_or_default();
                 let trades = load_trades(&db).await.unwrap_or_default();
                 let open_orders = load_open_orders(&db).await.unwrap_or_default();
+                let watchlist = load_watchlist(&db).await.unwrap_or_default();
 
                 let mut state = AppState::new();
                 state.set_cash_balance(cash_balance);
                 state.set_holdings_map(holdings_map).await;
                 state.set_trades(trades);
                 state.set_open_orders(open_orders);
+                state.set_watchlist(watchlist);
 
                 Arc::new(Mutex::new(state))
             }
@@ -281,6 +309,7 @@ pub async fn default_state(state: &Arc<Mutex<AppState>>, db: &DatabaseConnection
                 HoldingEntity::delete_many().exec(txn).await?;
                 TradeEntity::delete_many().exec(txn).await?;
                 OpenOrderEntity::delete_many().exec(txn).await?;
+                WatchlistEntity::delete_many().exec(txn).await?;
                 Ok(())
             })
         })

@@ -1,5 +1,5 @@
-use std::io::{self, Write};
 use rust_decimal::Decimal;
+use std::io::{self, Write};
 
 pub fn ask_ticker() -> Option<String> {
     loop {
@@ -57,6 +57,23 @@ pub fn ask_price() -> Option<Decimal> {
     get_user_input_f64("Enter the price (or 'cancel' to go back)", "price")
 }
 
+pub async fn check_input_now() -> io::Result<String> {
+    use tokio::io::AsyncBufReadExt;
+    let mut reader = tokio::io::BufReader::new(tokio::io::stdin());
+    let mut line = String::new();
+    
+    // We use a select with a small timeout to check if stdin has data
+    // without blocking the caller indefinitely
+    tokio::select! {
+        result = reader.read_line(&mut line) => {
+            result.map(|_| line)
+        }
+        _ = tokio::time::sleep(tokio::time::Duration::from_millis(10)) => {
+            Err(io::Error::new(io::ErrorKind::WouldBlock, "No input available"))
+        }
+    }
+}
+
 pub fn display_help() {
     println!("Available Commands:");
     println!("  fund              - Deposit funds into your account.");
@@ -67,8 +84,11 @@ pub fn display_help() {
     println!("  stoploss          - Sell shares of a stock when price <= your limit price, good till cancelled.");
     println!("  startbg           - Allow open orders to run execution in the background.");
     println!("  stopbg            - Stop open orders from running execution in the background.");
-    println!("  display           - Show your current cash balance, holdings, and their unrealized P&L.");
+    println!("  display (or 'D')  - Show your current cash balance, holdings, and their unrealized P&L.");
     println!("  price             - Get the current market price for a specified stock ticker.");
+    println!("  watch             - Display live price updates for stocks in your watchlist. Press 'x' to exit.");
+    println!("  addwatch          - Add a stock to your watchlist.");
+    println!("  unwatch           - Remove a stock from your watchlist.");
     println!("  reset             - Clear all your financial data and start fresh.");
     println!("  exit              - Save your session and exit the application.");
     println!("  help              - Display this help message.");

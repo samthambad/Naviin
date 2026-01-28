@@ -18,6 +18,7 @@ pub struct AppState {
     holdings: HashMap<Symbol, Holding>,
     trades: Vec<Trade>,
     open_orders: Vec<OpenOrder>,
+    watchlist: Vec<Symbol>,
 }
 
 impl Default for AppState {
@@ -33,6 +34,7 @@ impl AppState {
             holdings: HashMap::new(),
             trades: Vec::new(),
             open_orders: Vec::new(),
+            watchlist: Vec::new(),
         }
     }
 
@@ -70,6 +72,19 @@ impl AppState {
     pub async fn display(&self) {
         println!("\n--- Naviin App State ---");
         println!("Cash Balance: {}", self.cash_balance);
+
+        // Watchlist Display
+        if self.watchlist.is_empty() {
+            println!("\nNO WATCHLIST");
+        } else {
+            println!("\nWATCHLIST:");
+            println!("{:<10} {:<15}", "Symbol", "Curr Price");
+            println!("-------------------------");
+            for symbol in &self.watchlist {
+                let curr_price = FinanceProvider::curr_price(symbol, false).await;
+                println!("{:<10} {:<15}", symbol, curr_price);
+            }
+        }
 
         // Holdings Display
         if self.holdings.is_empty() {
@@ -203,6 +218,32 @@ impl AppState {
     
     pub fn get_trades(&self) -> Vec<Trade> {
         self.trades.clone()
+    }
+
+    pub fn add_to_watchlist(&mut self, symbol: Symbol) {
+        if !self.watchlist.contains(&symbol) {
+            self.watchlist.push(symbol);
+            println!("Added to watchlist");
+        } else {
+            println!("Already in watchlist");
+        }
+    }
+
+    pub fn remove_from_watchlist(&mut self, symbol: Symbol) {
+        if let Some(pos) = self.watchlist.iter().position(|x| *x == symbol) {
+            self.watchlist.remove(pos);
+            println!("Removed from watchlist");
+        } else {
+            println!("Not in watchlist");
+        }
+    }
+
+    pub fn get_watchlist(&self) -> Vec<Symbol> {
+        self.watchlist.clone()
+    }
+
+    pub fn set_watchlist(&mut self, watchlist: Vec<Symbol>) {
+        self.watchlist = watchlist;
     }
 
     // Get quantity of shares held for a specific ticker

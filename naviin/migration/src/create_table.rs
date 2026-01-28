@@ -61,6 +61,17 @@ impl MigrationTrait for Migration {
                     .to_owned(),
             )
             .await?;
+
+        manager
+            .create_table(
+                Table::create()
+                    .table(Watchlist::Table)
+                    .if_not_exists()
+                    .col(pk_auto(Watchlist::Id))
+                    .col(string(Watchlist::Symbol))
+                    .to_owned(),
+            )
+            .await?;
         Ok(())
     }
 
@@ -103,4 +114,11 @@ enum OpenOrder {
     Quantity,
     Price,
     Timestamp,
+}
+
+#[derive(DeriveIden)]
+enum Watchlist {
+    Table,
+    Id,
+    Symbol,
 }
