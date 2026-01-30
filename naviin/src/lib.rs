@@ -7,3 +7,4 @@ pub mod Orders;
 pub mod Storage;
 pub mod UserInput;
 pub mod entities;
+pub mod Tui;

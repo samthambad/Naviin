@@ -8,11 +8,12 @@ use naviin::{AppState::monitor_order, Finance, FinanceProvider, Storage, UserInp
 use sea_orm::{Database, DatabaseConnection};
 use crossterm::terminal::{enable_raw_mode, disable_raw_mode};
 use crossterm::event::{self, Event, KeyCode};
-use std::time::Duration;
+use naviin::Tui::Tui;
 
 #[tokio::main]
 async fn main() {
     // let mut username = String::new();
+    let _ = ratatui::run(|terminal| Tui::default().run(terminal));
     dotenv().ok();
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set in .env");
     let db: DatabaseConnection = Database::connect(database_url)
