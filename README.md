@@ -55,7 +55,7 @@ Modular, separation-of-concerns design:
 
 ### Installation & Running
 ```bash
-git clone https://github.com/your-username/Naviin.git
+git clone https://github.com/samthambad/Naviin.git
 cd Naviin/naviin
 cargo build --release
 cargo run
