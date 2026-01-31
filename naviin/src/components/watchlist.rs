@@ -152,15 +152,6 @@ impl WatchlistComponent {
                 .borders(Borders::ALL)
                 .border_set(border::ROUNDED)
                 .title(" Watchlist ".bold())
-                .title_bottom(
-                    Line::from(vec![
-                        " Navigate ".into(),
-                        "<Up>/<Down>".blue().bold(),
-                        " Refresh ".into(),
-                        "<R>".blue().bold(),
-                    ])
-                    .centered(),
-                ),
         )
         .row_highlight_style(Style::default().bg(Color::DarkGray).fg(Color::White))
         .highlight_symbol("> ");

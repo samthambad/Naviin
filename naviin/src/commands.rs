@@ -10,7 +10,7 @@ use rust_decimal::Decimal;
 use crate::AppState::AppState;
 use crate::Finance;
 use crate::FinanceProvider;
-use crate::Orders::{self, OrderType};
+use crate::Orders;
 use crate::Storage;
 
 use sea_orm::DatabaseConnection;
@@ -55,11 +55,11 @@ pub async fn process_command(
         "unwatch" => handle_remove_watch(state, db, args).await,
         
         // Trading commands
-        "buy" => handle_buy(state, db).await,
-        "sell" => handle_sell(state, db).await,
-        "buylimit" => handle_buy_limit(state, db).await,
-        "stoploss" => handle_stop_loss(state, db).await,
-        "takeprofit" => handle_take_profit(state, db).await,
+        "buy" => handle_buy(state, db, args).await,
+        "sell" => handle_sell(state, db, args).await,
+        "buylimit" => handle_buy_limit(state, db, args).await,
+        "stoploss" => handle_stop_loss(state, db, args).await,
+        "takeprofit" => handle_take_profit(state, db, args).await,
         
         // Background order commands
         "stopbg" => handle_stop_bg(running).await,
@@ -67,6 +67,7 @@ pub async fn process_command(
         
         // System commands
         "reset" => handle_reset(state, db).await,
+        "clear" => "__CLEAR__".to_string(),
         "help" => handle_help(),
         "exit" | "quit" => "Exiting...".to_string(),
         
@@ -237,66 +238,242 @@ async fn handle_remove_watch(
 
 /// SECTION: Trading Commands
 
-/// Executes a buy order
-/// Usage: buy (interactive)
-async fn handle_buy(_state: &Arc<Mutex<AppState>>, _db: &DatabaseConnection) -> String {
-    // For interactive commands, we need to handle input differently in TUI
-    // For now, return a message indicating this needs ticker input
-    "Buy command: Enter 'buy <symbol> <quantity>' or use interactive mode".to_string()
+/// Executes a market buy order
+/// Usage: buy <symbol> <quantity>
+async fn handle_buy(
+    state: &Arc<Mutex<AppState>>,
+    db: &DatabaseConnection,
+    args: &[&str],
+) -> String {
+    if args.len() < 2 {
+        return "Usage: buy <symbol> <quantity>".to_string();
+    }
+    
+    let symbol = args[0].to_uppercase();
+    let quantity: Decimal = match args[1].parse() {
+        Ok(v) => v,
+        Err(_) => return "Invalid quantity".to_string(),
+    };
+    
+    if quantity <= Decimal::ZERO {
+        return "Quantity must be positive".to_string();
+    }
+    
+    // Get current price
+    let price = FinanceProvider::curr_price(&symbol, false).await;
+    if price == Decimal::ZERO {
+        return format!("Could not get price for {}", symbol);
+    }
+    
+    let total_cost = price * quantity;
+    
+    // Check balance
+    let balance = {
+        let state_guard = state.lock().unwrap();
+        state_guard.check_balance()
+    };
+    
+    if total_cost > balance {
+        return format!("Insufficient funds. Need ${:.2}, have ${:.2}", total_cost, balance);
+    }
+    
+    // Execute buy
+    Finance::create_buy_with_params(state, symbol.clone(), quantity, price).await;
+    Storage::save_state(state, db).await;
+    
+    format!("Bought {} shares of {} at ${:.2} (total: ${:.2})", quantity, symbol, price, total_cost)
 }
 
-/// Executes a sell order
-/// Usage: sell (interactive)
-async fn handle_sell(_state: &Arc<Mutex<AppState>>, _db: &DatabaseConnection) -> String {
-    "Sell command: Enter 'sell <symbol> <quantity>' or use interactive mode".to_string()
+/// Executes a market sell order
+/// Usage: sell <symbol> <quantity>
+async fn handle_sell(
+    state: &Arc<Mutex<AppState>>,
+    db: &DatabaseConnection,
+    args: &[&str],
+) -> String {
+    if args.len() < 2 {
+        return "Usage: sell <symbol> <quantity>".to_string();
+    }
+    
+    let symbol = args[0].to_uppercase();
+    let quantity: Decimal = match args[1].parse() {
+        Ok(v) => v,
+        Err(_) => return "Invalid quantity".to_string(),
+    };
+    
+    if quantity <= Decimal::ZERO {
+        return "Quantity must be positive".to_string();
+    }
+    
+    // Check holdings
+    let available_qty = {
+        let state_guard = state.lock().unwrap();
+        state_guard.get_ticker_holdings_qty(&symbol)
+    };
+    
+    if quantity > available_qty {
+        return format!("Insufficient holdings. Have {:.2} shares of {}", available_qty, symbol);
+    }
+    
+    // Get current price
+    let price = FinanceProvider::curr_price(&symbol, false).await;
+    if price == Decimal::ZERO {
+        return format!("Could not get price for {}", symbol);
+    }
+    
+    let total_value = price * quantity;
+    
+    // Execute sell
+    Finance::create_sell_with_params(state, symbol.clone(), quantity, price).await;
+    Storage::save_state(state, db).await;
+    
+    format!("Sold {} shares of {} at ${:.2} (total: ${:.2})", quantity, symbol, price, total_value)
 }
 
 /// Creates a buy limit order
-/// Usage: buylimit (interactive)
-async fn handle_buy_limit(state: &Arc<Mutex<AppState>>, db: &DatabaseConnection) -> String {
-    if let Some(order) = Orders::create_order(OrderType::BuyLimit) {
-        let symbol = order.get_symbol().clone();
-        {
-            let mut state_guard = state.lock().unwrap();
-            state_guard.add_open_order(order);
-        }
-        Storage::save_state(state, db).await;
-        format!("Buy limit order created for {}", symbol)
-    } else {
-        "Failed to create buy limit order".to_string()
+/// Usage: buylimit <symbol> <quantity> <price>
+async fn handle_buy_limit(
+    state: &Arc<Mutex<AppState>>,
+    db: &DatabaseConnection,
+    args: &[&str],
+) -> String {
+    if args.len() < 3 {
+        return "Usage: buylimit <symbol> <quantity> <price>".to_string();
     }
+    
+    let symbol = args[0].to_uppercase();
+    let quantity: Decimal = match args[1].parse() {
+        Ok(v) => v,
+        Err(_) => return "Invalid quantity".to_string(),
+    };
+    let price: Decimal = match args[2].parse() {
+        Ok(v) => v,
+        Err(_) => return "Invalid price".to_string(),
+    };
+    
+    if quantity <= Decimal::ZERO || price <= Decimal::ZERO {
+        return "Quantity and price must be positive".to_string();
+    }
+    
+    // Create order
+    let order = Orders::OpenOrder::BuyLimit {
+        symbol: symbol.clone(),
+        quantity,
+        price,
+        timestamp: chrono::Utc::now().timestamp(),
+    };
+    
+    {
+        let mut state_guard = state.lock().unwrap();
+        match state_guard.add_open_order(order) { Ok(msg) => msg, Err(e) => return e };
+    }
+    Storage::save_state(state, db).await;
+    
+    format!("Buy limit order created: {} shares of {} at ${:.2}", quantity, symbol, price)
 }
 
 /// Creates a stop loss order
-/// Usage: stoploss (interactive)
-async fn handle_stop_loss(state: &Arc<Mutex<AppState>>, db: &DatabaseConnection) -> String {
-    if let Some(order) = Orders::create_order(OrderType::StopLoss) {
-        let symbol = order.get_symbol().clone();
-        {
-            let mut state_guard = state.lock().unwrap();
-            state_guard.add_open_order(order);
-        }
-        Storage::save_state(state, db).await;
-        format!("Stop loss order created for {}", symbol)
-    } else {
-        "Failed to create stop loss order".to_string()
+/// Usage: stoploss <symbol> <quantity> <price>
+async fn handle_stop_loss(
+    state: &Arc<Mutex<AppState>>,
+    db: &DatabaseConnection,
+    args: &[&str],
+) -> String {
+    if args.len() < 3 {
+        return "Usage: stoploss <symbol> <quantity> <price>".to_string();
     }
+    
+    let symbol = args[0].to_uppercase();
+    let quantity: Decimal = match args[1].parse() {
+        Ok(v) => v,
+        Err(_) => return "Invalid quantity".to_string(),
+    };
+    let price: Decimal = match args[2].parse() {
+        Ok(v) => v,
+        Err(_) => return "Invalid price".to_string(),
+    };
+    
+    if quantity <= Decimal::ZERO || price <= Decimal::ZERO {
+        return "Quantity and price must be positive".to_string();
+    }
+    
+    // Check holdings
+    let available_qty = {
+        let state_guard = state.lock().unwrap();
+        state_guard.get_ticker_holdings_qty(&symbol)
+    };
+    
+    if quantity > available_qty {
+        return format!("Insufficient holdings. Have {:.2} shares of {}", available_qty, symbol);
+    }
+    
+    // Create order
+    let order = Orders::OpenOrder::StopLoss {
+        symbol: symbol.clone(),
+        quantity,
+        price,
+        timestamp: chrono::Utc::now().timestamp(),
+    };
+    
+    {
+        let mut state_guard = state.lock().unwrap();
+        match state_guard.add_open_order(order) { Ok(msg) => msg, Err(e) => return e };
+    }
+    Storage::save_state(state, db).await;
+    
+    format!("Stop loss order created: {} shares of {} at ${:.2}", quantity, symbol, price)
 }
 
 /// Creates a take profit order
-/// Usage: takeprofit (interactive)
-async fn handle_take_profit(state: &Arc<Mutex<AppState>>, db: &DatabaseConnection) -> String {
-    if let Some(order) = Orders::create_order(OrderType::TakeProfit) {
-        let symbol = order.get_symbol().clone();
-        {
-            let mut state_guard = state.lock().unwrap();
-            state_guard.add_open_order(order);
-        }
-        Storage::save_state(state, db).await;
-        format!("Take profit order created for {}", symbol)
-    } else {
-        "Failed to create take profit order".to_string()
+/// Usage: takeprofit <symbol> <quantity> <price>
+async fn handle_take_profit(
+    state: &Arc<Mutex<AppState>>,
+    db: &DatabaseConnection,
+    args: &[&str],
+) -> String {
+    if args.len() < 3 {
+        return "Usage: takeprofit <symbol> <quantity> <price>".to_string();
     }
+    
+    let symbol = args[0].to_uppercase();
+    let quantity: Decimal = match args[1].parse() {
+        Ok(v) => v,
+        Err(_) => return "Invalid quantity".to_string(),
+    };
+    let price: Decimal = match args[2].parse() {
+        Ok(v) => v,
+        Err(_) => return "Invalid price".to_string(),
+    };
+    
+    if quantity <= Decimal::ZERO || price <= Decimal::ZERO {
+        return "Quantity and price must be positive".to_string();
+    }
+    
+    // Check holdings
+    let available_qty = {
+        let state_guard = state.lock().unwrap();
+        state_guard.get_ticker_holdings_qty(&symbol)
+    };
+    
+    if quantity > available_qty {
+        return format!("Insufficient holdings. Have {:.2} shares of {}", available_qty, symbol);
+    }
+    
+    // Create order
+    let order = Orders::OpenOrder::TakeProfit {
+        symbol: symbol.clone(),
+        quantity,
+        price,
+        timestamp: chrono::Utc::now().timestamp(),
+    };
+    
+    {
+        let mut state_guard = state.lock().unwrap();
+        match state_guard.add_open_order(order) { Ok(msg) => msg, Err(e) => return e };
+    }
+    Storage::save_state(state, db).await;
+    
+    format!("Take profit order created: {} shares of {} at ${:.2}", quantity, symbol, price)
 }
 
 /// SECTION: Background Order Commands
@@ -330,25 +507,31 @@ fn handle_help() -> String {
     String::from(
         "Available Commands:\n\n\
         ACCOUNT:\n\
-        fund <amount>      - Add funds to account\n\
-        withdraw <amount>  - Withdraw funds from account\n\
-        display, d         - Show account summary\n\n\
+        fund <amount>              - Add funds to account\n\
+        withdraw <amount>          - Withdraw funds from account\n\
+        display, d                 - Show account summary\n\n\
         PRICES & WATCHLIST:\n\
-        price <symbol>     - Get current price for symbol\n\
-        watch              - Show watchlist with prices\n\
-        addwatch <symbol>  - Add symbol to watchlist\n\
-        unwatch <symbol>   - Remove symbol from watchlist\n\n\
+        price <symbol>             - Get current price for symbol\n\
+        watch                      - Show watchlist with prices\n\
+        addwatch <symbol>          - Add symbol to watchlist\n\
+        unwatch <symbol>           - Remove symbol from watchlist\n\n\
         TRADING:\n\
-        buy                - Buy shares (interactive)\n\
-        sell               - Sell shares (interactive)\n\
-        buylimit           - Create buy limit order\n\
-        stoploss           - Create stop loss order\n\
-        takeprofit         - Create take profit order\n\n\
+        buy <symbol> <qty>         - Buy shares at market price\n\
+        sell <symbol> <qty>        - Sell shares at market price\n\
+        buylimit <sym> <qty> <pr>  - Create buy limit order\n\
+        stoploss <sym> <qty> <pr>  - Create stop loss order\n\
+        takeprofit <sym> <qty> <pr> - Create take profit order\n\n\
         SYSTEM:\n\
-        stopbg             - Stop background orders\n\
-        startbg            - Start background orders\n\
-        reset              - Reset all data\n\
-        help               - Show this help\n\
-        exit, quit         - Exit application"
+        stopbg                     - Stop background orders\n\
+        startbg                    - Start background orders\n\
+        reset                      - Reset all data\n\
+        clear                      - Clear screen\n\
+        help                       - Show this help\n\
+        exit, quit                 - Exit application\n\n\
+        NAVIGATION:\n\
+        Tab                        - Cycle top sections\n\
+        Up/Down                    - Navigate within section\n\
+        PgUp/PgDn                  - Scroll output\n\
+        Ctrl+Home/Ctrl+End         - Output top/bottom"
     )
 }

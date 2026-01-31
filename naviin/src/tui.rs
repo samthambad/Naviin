@@ -1,14 +1,15 @@
 /// TUI Module - Main terminal user interface
 /// 
-/// This module coordinates the display of three main areas:
-/// 1. Top: Watchlist component (stock symbols and prices)
+/// This module coordinates the display of UI areas:
+/// 1. Top Row: Holdings | Open Orders | Watchlist (3 components, horizontal)
 /// 2. Middle: Input component (command typing area)
 /// 3. Bottom: Output component (command results display)
 /// 
-/// All component logic is delegated to their respective modules.
+/// Auto-refreshes top components every 5 seconds for real-time price updates.
 
 use std::io;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::{
@@ -17,19 +18,36 @@ use ratatui::{
     Frame, Terminal,
 };
 use sea_orm::DatabaseConnection;
+use tokio::time::{interval, Instant};
 
 use crate::AppState::AppState;
 use crate::commands::process_command;
+use crate::components::holdings::HoldingsComponent;
 use crate::components::input::InputComponent;
+use crate::components::open_orders::OpenOrdersComponent;
 use crate::components::output::OutputComponent;
 use crate::components::watchlist::WatchlistComponent;
 use crate::Finance::Symbol;
+
+/// Tracks which of the three top components is currently active for navigation
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum TopSection {
+    Holdings,
+    OpenOrders,
+    Watchlist,
+}
 
 /// Main TUI application state and coordinator
 pub struct Tui {
     /// Flag to indicate if the application should exit
     exit: bool,
-    /// Top section: Watchlist display component
+    /// Currently active top section for navigation
+    active_top: TopSection,
+    /// Top left: Holdings component
+    holdings: HoldingsComponent,
+    /// Top middle: Open orders component
+    open_orders: OpenOrdersComponent,
+    /// Top right: Watchlist display component
     watchlist: WatchlistComponent,
     /// Middle section: Command input component
     input: InputComponent,
@@ -41,18 +59,14 @@ pub struct Tui {
     db: DatabaseConnection,
     /// Background order monitoring flag
     running: Arc<std::sync::atomic::AtomicBool>,
+    /// Last time data was refreshed (for status/debugging)
+    last_refresh: Instant,
 }
 
 impl Tui {
     /// SECTION: Constructor
     
     /// Creates a new TUI instance with all required dependencies
-    /// 
-    /// # Arguments
-    /// * `symbols` - Initial list of stock symbols to display in watchlist
-    /// * `state` - Application state shared across components
-    /// * `db` - Database connection for saving/loading state
-    /// * `running` - Flag to control background order monitoring
     pub fn new(
         symbols: Vec<Symbol>,
         state: Arc<Mutex<AppState>>,
@@ -61,97 +75,118 @@ impl Tui {
     ) -> Self {
         Self {
             exit: false,
+            active_top: TopSection::Holdings,
+            holdings: HoldingsComponent::new(),
+            open_orders: OpenOrdersComponent::new(),
             watchlist: WatchlistComponent::new(symbols),
             input: InputComponent::new(),
             output: OutputComponent::new(),
             state,
             db,
             running,
+            last_refresh: Instant::now(),
         }
     }
 
     /// SECTION: Main Loop
     
     /// Runs the application's main event loop until user quits
-    /// 
-    /// # Arguments
-    /// * `terminal` - The ratatui terminal to draw on
+    /// Uses tokio::select! to handle both user input and periodic refresh
     pub async fn run<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> io::Result<()>
     where
         io::Error: From<<B as Backend>::Error>,
     {
-        // Initial watchlist price fetch
-        self.refresh_watchlist().await;
+        // Initial data refresh
+        self.refresh_all().await;
+        
+        // Create a 5-second interval timer for auto-refresh
+        let mut refresh_timer = interval(Duration::from_secs(5));
+        refresh_timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         
         while !self.exit {
+            // Draw the UI
             terminal.draw(|frame| self.draw(frame))?;
-            self.handle_events().await?;
+            
+            // Wait for either an event or a timer tick
+            tokio::select! {
+                // Handle keyboard events (with 100ms timeout to keep UI responsive)
+                _ = tokio::time::sleep(Duration::from_millis(100)) => {
+                    // Check for events without blocking
+                    if event::poll(Duration::from_millis(0))? {
+                        if let Event::Key(key_event) = event::read()? {
+                            if key_event.kind == KeyEventKind::Press {
+                                self.handle_key_event(key_event).await;
+                            }
+                        }
+                    }
+                }
+                
+                // Handle periodic refresh every 5 seconds
+                _ = refresh_timer.tick() => {
+                    self.refresh_prices_only().await;
+                    self.last_refresh = Instant::now();
+                }
+            }
         }
         Ok(())
     }
 
     /// SECTION: Rendering
     
-    /// Draws the three components in their respective screen areas
-    /// Layout: Watchlist (top), Input (middle), Output (bottom)
-    /// 
-    /// # Arguments
-    /// * `frame` - The frame to render on
+    /// Draws all UI components in their assigned areas
     fn draw(&self, frame: &mut Frame) {
         let areas = self.calculate_layout(frame.area());
         
-        // Render each component in its assigned area
+        // Render top row (3 components horizontally)
+        frame.render_widget(&self.holdings, areas.holdings);
+        frame.render_widget(&self.open_orders, areas.open_orders);
         frame.render_widget(&self.watchlist, areas.watchlist);
+        
+        // Render middle and bottom sections
         frame.render_widget(&self.input, areas.input);
         frame.render_widget(&self.output, areas.output);
     }
 
-    /// Calculates the screen layout dividing space between three components
-    /// 
-    /// # Arguments
-    /// * `area` - Total available screen area
-    /// 
-    /// # Returns
-    /// Struct containing the three sub-areas
+    /// Calculates the screen layout
+    /// Top row: 3 horizontal components (Holdings | Open Orders | Watchlist)
+    /// Middle: Input
+    /// Bottom: Output
     fn calculate_layout(&self, area: Rect) -> LayoutAreas {
-        // Split vertically into three sections
-        let chunks = Layout::default()
+        // First split vertically: top row (40%), input (20%), output (40%)
+        let vertical_chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Percentage(40), // Watchlist gets 40%
-                Constraint::Percentage(20), // Input gets 20%
-                Constraint::Percentage(40), // Output gets 40%
+                Constraint::Percentage(40),
+                Constraint::Percentage(20),
+                Constraint::Percentage(40),
             ])
             .split(area);
 
+        // Split top row horizontally into 3 equal parts
+        let top_row = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Percentage(33),
+                Constraint::Percentage(34),
+                Constraint::Percentage(33),
+            ])
+            .split(vertical_chunks[0]);
+
         LayoutAreas {
-            watchlist: chunks[0],
-            input: chunks[1],
-            output: chunks[2],
+            holdings: top_row[0],
+            open_orders: top_row[1],
+            watchlist: top_row[2],
+            input: vertical_chunks[1],
+            output: vertical_chunks[2],
         }
     }
 
     /// SECTION: Event Handling
     
-    /// Processes keyboard and other input events
-    async fn handle_events(&mut self) -> io::Result<()> {
-        match event::read()? {
-            Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
-                self.handle_key_event(key_event).await;
-            }
-            _ => {}
-        };
-        Ok(())
-    }
-
     /// Handles keyboard key press events
-    /// Routes events to appropriate component or handles globally
-    /// 
-    /// # Arguments
-    /// * `key_event` - The key event to process
     async fn handle_key_event(&mut self, key_event: KeyEvent) {
         match key_event.code {
-            // Global quit command
+            // Global quit
             KeyCode::Char('q') if key_event.modifiers.is_empty() => {
                 self.exit();
             }
@@ -159,21 +194,67 @@ impl Tui {
             // Input navigation
             KeyCode::Left => self.input.move_cursor_left(),
             KeyCode::Right => self.input.move_cursor_right(),
-            KeyCode::Home => self.input.move_cursor_start(),
-            KeyCode::End => self.input.move_cursor_end(),
+            KeyCode::Home if !key_event.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
+                self.input.move_cursor_start()
+            }
+            KeyCode::End if !key_event.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
+                self.input.move_cursor_end()
+            }
             
             // Text input
             KeyCode::Char(c) => self.input.enter_char(c),
             KeyCode::Backspace => self.input.backspace(),
             
-            // Command execution (Enter key)
+            // Command execution
             KeyCode::Enter => self.execute_command().await,
             
-            // Watchlist navigation
-            KeyCode::Up => self.watchlist.previous(),
-            KeyCode::Down => self.watchlist.next(),
+            // Top section navigation (Tab cycles through Holdings -> OpenOrders -> Watchlist)
+            KeyCode::Tab => self.cycle_top_section(),
+            
+            // Navigation within active top section (Up/Down)
+            KeyCode::Up => self.navigate_top_previous(),
+            KeyCode::Down => self.navigate_top_next(),
+            
+            // Output scrolling
+            KeyCode::PageUp => self.output.scroll_up(5),
+            KeyCode::PageDown => self.output.scroll_down(5),
+            KeyCode::Home if key_event.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
+                self.output.scroll_to_top()
+            }
+            KeyCode::End if key_event.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
+                self.output.scroll_to_bottom()
+            }
             
             _ => {}
+        }
+    }
+
+    /// SECTION: Top Section Navigation
+
+    /// Cycles to the next top section (Holdings -> OpenOrders -> Watchlist -> Holdings)
+    fn cycle_top_section(&mut self) {
+        self.active_top = match self.active_top {
+            TopSection::Holdings => TopSection::OpenOrders,
+            TopSection::OpenOrders => TopSection::Watchlist,
+            TopSection::Watchlist => TopSection::Holdings,
+        };
+    }
+
+    /// Navigates to previous item in the active top section
+    fn navigate_top_previous(&mut self) {
+        match self.active_top {
+            TopSection::Holdings => self.holdings.previous(),
+            TopSection::OpenOrders => self.open_orders.previous(),
+            TopSection::Watchlist => self.watchlist.previous(),
+        }
+    }
+
+    /// Navigates to next item in the active top section
+    fn navigate_top_next(&mut self) {
+        match self.active_top {
+            TopSection::Holdings => self.holdings.next(),
+            TopSection::OpenOrders => self.open_orders.next(),
+            TopSection::Watchlist => self.watchlist.next(),
         }
     }
 
@@ -195,6 +276,13 @@ impl Tui {
             return;
         }
         
+        // Check for clear command
+        if command.eq_ignore_ascii_case("clear") {
+            self.output.clear();
+            self.output.set_output("Screen cleared".to_string());
+            return;
+        }
+        
         // Process command and get result
         let result = process_command(
             &command,
@@ -206,27 +294,45 @@ impl Tui {
         // Display result
         self.output.set_output(result);
         
-        // Refresh watchlist if command might have changed it
-        if command.starts_with("addwatch") || command.starts_with("unwatch") {
-            self.refresh_watchlist().await;
-        }
+        // Refresh all data if command might have changed state
+        self.refresh_all().await;
     }
 
-    /// SECTION: Watchlist Management
-    
-    /// Refreshes watchlist symbols and prices from current state
-    async fn refresh_watchlist(&mut self) {
-        // Get current watchlist from state
-        let symbols = {
-            let state_guard = self.state.lock().unwrap();
-            state_guard.get_watchlist()
-        };
+    /// SECTION: Data Refresh
+
+    /// Refreshes all top section components with current data
+    /// Used after commands that modify state
+    async fn refresh_all(&mut self) {
+        let state_guard = self.state.lock().unwrap();
         
-        // Update watchlist component with symbols
-        self.watchlist.update_symbols(symbols);
+        // Get all data from state
+        let holdings = state_guard.get_holdings_map();
+        let orders = state_guard.get_open_orders();
+        let watchlist = state_guard.get_watchlist();
+        let cash = state_guard.check_balance();
         
-        // Fetch current prices
-        self.watchlist.refresh_prices().await;
+        // Update components
+        self.holdings.update_holdings(holdings, cash);
+        self.open_orders.update_orders(orders);
+        self.watchlist.update_symbols(watchlist);
+        
+        // Release lock before async operations
+        drop(state_guard);
+        
+        // Fetch prices for holdings and watchlist in parallel
+        self.refresh_prices_only().await;
+    }
+
+    /// Refreshes only prices (not the full state)
+    /// Optimized for the 5-second auto-refresh timer
+    /// Fetches prices concurrently for maximum performance
+    async fn refresh_prices_only(&mut self) {
+        // Fetch prices concurrently using tokio::join for maximum performance
+        // This runs both refresh operations in parallel
+        tokio::join!(
+            self.holdings.refresh_prices(),
+            self.watchlist.refresh_prices()
+        );
     }
 
     /// SECTION: Application Control
@@ -237,9 +343,13 @@ impl Tui {
     }
 }
 
-/// Layout areas for the three UI components
+/// Layout areas for all UI components
 struct LayoutAreas {
-    /// Area for watchlist component (top)
+    /// Area for holdings component (top left)
+    holdings: Rect,
+    /// Area for open orders component (top middle)
+    open_orders: Rect,
+    /// Area for watchlist component (top right)
     watchlist: Rect,
     /// Area for input component (middle)
     input: Rect,

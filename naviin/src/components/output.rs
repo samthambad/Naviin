@@ -17,6 +17,8 @@ pub struct OutputComponent {
     output_text: String,
     /// History of previous outputs
     history: Vec<String>,
+    /// Current scroll offset (how many lines scrolled down)
+    scroll_offset: usize,
 }
 
 impl Default for OutputComponent {
@@ -33,17 +35,20 @@ impl OutputComponent {
         Self {
             output_text: String::new(),
             history: Vec::new(),
+            scroll_offset: 0,
         }
     }
 
     /// SECTION: Output Management
 
     /// Sets the current output text to display
+    /// Resets scroll position to show the beginning of new content
     ///
     /// # Arguments
     /// * `text` - The output text to show
     pub fn set_output(&mut self, text: String) {
         self.output_text = text;
+        self.reset_scroll();
     }
 
     /// Appends text to the current output
@@ -80,10 +85,45 @@ impl OutputComponent {
     pub fn get_history(&self) -> &[String] {
         &self.history
     }
+
+    /// SECTION: Scrolling
+
+    /// Scrolls the output up by the specified number of lines
+    ///
+    /// # Arguments
+    /// * `lines` - Number of lines to scroll up
+    pub fn scroll_up(&mut self, lines: usize) {
+        self.scroll_offset = self.scroll_offset.saturating_sub(lines);
+    }
+
+    /// Scrolls the output down by the specified number of lines
+    ///
+    /// # Arguments
+    /// * `lines` - Number of lines to scroll down
+    pub fn scroll_down(&mut self, lines: usize) {
+        self.scroll_offset += lines;
+    }
+
+    /// Scrolls to the top of the output
+    pub fn scroll_to_top(&mut self) {
+        self.scroll_offset = 0;
+    }
+
+    /// Scrolls to the bottom of the output
+    pub fn scroll_to_bottom(&mut self) {
+        // Set to a large number - widget will clamp to actual max
+        self.scroll_offset = usize::MAX;
+    }
+
+    /// Resets scroll offset when new content is displayed
+    fn reset_scroll(&mut self) {
+        self.scroll_offset = 0;
+    }
 }
 
 impl Widget for &OutputComponent {
     /// Renders the output area with the current output text
+    /// Applies scrolling based on the current scroll offset
     fn render(self, area: Rect, buf: &mut Buffer) {
         let text = if self.output_text.is_empty() {
             Text::from(vec![
@@ -98,8 +138,34 @@ impl Widget for &OutputComponent {
 
         let block = Block::bordered()
             .title(" Output ".bold())
+            .title_bottom(
+                Line::from(vec![
+                    " Scroll ".into(),
+                    "<PgUp>/<PgDn>".blue().bold(),
+                    " Top ".into(),
+                    "<Ctrl+Home>".blue().bold(),
+                    " Bottom ".into(),
+                    "<Ctrl+End>".blue().bold(),
+                ])
+                .centered(),
+            )
             .border_set(border::ROUNDED);
 
-        Paragraph::new(text).block(block).render(area, buf);
+        // Calculate visible area (accounting for borders)
+        let inner_area = block.inner(area);
+        let visible_lines = inner_area.height as usize;
+
+        // Only apply scroll if content exceeds visible area
+        let total_lines = self.output_text.lines().count();
+        let scroll = if total_lines > visible_lines {
+            (self.scroll_offset as u16).min((total_lines - visible_lines) as u16)
+        } else {
+            0
+        };
+
+        Paragraph::new(text)
+            .block(block)
+            .scroll((scroll, 0))
+            .render(area, buf);
     }
 }
