@@ -6,6 +6,8 @@ Naviin delivers real-time multi-asset monitoring (equities, ETFs, FX, commoditie
 
 ## Current Features
 
+<img title="Screenshot" alt="Screenshot" src="/images/screenshot.png">
+
 - **Real-time Market Data**: Multi-asset price fetching (Equities, ETFs, FX, and Commodities) via financial APIs.
 - **Portfolio Tracking**: Multi-asset holdings with automatic average cost basis, real-time P&L, and performance metrics.
 - **Advanced Order Execution**: Support for Limit, Stop-Loss, and Take-Profit orders.
@@ -53,7 +55,7 @@ Modular, separation-of-concerns design:
 
 ### Installation & Running
 ```bash
-git clone https://github.com/your-username/Naviin.git
+git clone https://github.com/samthambad/Naviin.git
 cd Naviin/naviin
 cargo build --release
 cargo run

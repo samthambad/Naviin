@@ -116,6 +116,38 @@ pub async fn create_sell(state: &Arc<Mutex<AppState>>) {
     }
 }
 
+// SECTION: Non-interactive Trading Functions
+
+/// Execute buy with specified parameters (no prompts)
+pub async fn create_buy_with_params(
+    state: &Arc<Mutex<AppState>>,
+    symbol: String,
+    quantity: Decimal,
+    price: Decimal,
+) {
+    let total_price = price * quantity;
+    
+    let mut state_guard = state.lock().unwrap();
+    state_guard.withdraw_purchase(total_price);
+    add_to_holdings(&symbol, quantity, price, &mut state_guard).await;
+    state_guard.add_trade(crate::Orders::Trade::buy(symbol, quantity, price));
+}
+
+/// Execute sell with specified parameters (no prompts)
+pub async fn create_sell_with_params(
+    state: &Arc<Mutex<AppState>>,
+    symbol: String,
+    quantity: Decimal,
+    price: Decimal,
+) {
+    let total_price = price * quantity;
+    
+    let mut state_guard = state.lock().unwrap();
+    state_guard.deposit_sell(total_price);
+    remove_from_holdings(&symbol, quantity, &mut (*state_guard)).await;
+    state_guard.add_trade(crate::Orders::Trade::sell(symbol, quantity, price));
+}
+
 // Update or create holding with new purchase, calculating average cost
 pub(crate) async fn add_to_holdings(ticker: &String, quantity: Decimal, price_per: Decimal, state: &mut AppState) {
     let mut prev_holdings_map: HashMap<Symbol, Holding> = state.get_holdings_map();

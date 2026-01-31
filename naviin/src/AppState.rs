@@ -287,23 +287,24 @@ impl AppState {
     }
 
     // Add pending order to order book with validation
-    pub fn add_open_order(&mut self, new_order: OpenOrder) {
+    // Returns Ok(message) on success, Err(message) on failure
+    pub fn add_open_order(&mut self, new_order: OpenOrder) -> Result<String, String> {
         if new_order.get_side() == Side::Sell {
             // Check that you have enough to sell after accounting for existing sell orders
             if self.get_available_holdings_qty(new_order.get_symbol()) - new_order.get_qty() < Decimal::ZERO {
-                println!("You don't have enough of this to sell!");
-                return;
+                return Err("You don't have enough of this to sell!".to_string());
             }
         } else {
             // Check for funds after accounting for other buys
             if self.get_available_cash() < new_order.get_qty() * new_order.get_price_per() {
-                println!("You don't have enough of cash for this purchase!");
-                return;
+                return Err("You don't have enough of cash for this purchase!".to_string());
             }
         }
+        let symbol = new_order.get_symbol().clone();
+        let order_type = new_order.get_order_type().to_string();
         self.open_orders.push(new_order);
         open_order_sorting(&mut self.open_orders);
-        println!("Open order added");
+        Ok(format!("{} order added for {}", order_type, symbol))
     }
 
     // Remove pending order from order book
