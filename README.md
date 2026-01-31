@@ -24,7 +24,8 @@ Naviin is evolving from a paper trading tool into a robust platform for financia
 - [ ] Better User Experience
 
 ### Phase 2: Technical Analysis & Strategy Engine
-- Dividend tracking
+- Options
+- Dividends
 - Transaction Modeling: Configurable commissions and fees for realistic performance simulation.
 - ...
 
