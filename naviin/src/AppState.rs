@@ -69,123 +69,6 @@ impl AppState {
         self.cash_balance += amount;
     }
 
-    pub async fn display(&self) {
-        println!("\n--- Naviin App State ---");
-        println!("Cash Balance: {}", self.cash_balance);
-
-        // Watchlist Display
-        if self.watchlist.is_empty() {
-            println!("\nNO WATCHLIST");
-        } else {
-            println!("\nWATCHLIST:");
-            println!("{:<10} {:<15}", "Symbol", "Curr Price");
-            println!("-------------------------");
-            for symbol in &self.watchlist {
-                let curr_price = FinanceProvider::curr_price(symbol, false).await;
-                println!("{:<10} {:<15}", symbol, curr_price);
-            }
-        }
-
-        // Holdings Display
-        if self.holdings.is_empty() {
-            println!("\nNO HOLDINGS");
-        } else {
-            println!("\nHOLDINGS:");
-            println!(
-                "{:<10} {:<10} {:<15} {:<15} {:<15} {:<15}",
-                "Symbol", "Qty", "Avg Cost", "Curr Price", "Total Value", "PNL"
-            );
-            println!(
-                "----------------------------------------------------------------------------------"
-            );
-            for (symbol, holding) in &self.holdings {
-                let curr_price = FinanceProvider::curr_price(symbol, false).await;
-                let total_value = holding.get_qty() * curr_price;
-                let pnl = holding.get_pnl().await;
-                println!(
-                    "{:<10} {:<10} {:<15} {:<15} {:<15} {:<15}",
-                    symbol,
-                    holding.get_qty(),
-                    holding.get_avg_price(),
-                    curr_price,
-                    total_value,
-                    pnl
-                );
-            }
-        }
-
-        // Open Orders Display
-        if self.open_orders.is_empty() {
-            println!("\nNO OPEN ORDERS");
-        } else {
-            println!("\nOPEN ORDERS:");
-            println!(
-                "{:<10} {:<8} {:<6} {:<10} {:<12} {:<20}",
-                "Symbol", "Type", "Side", "Qty", "Price/Share", "Timestamp"
-            );
-            println!("------------------------------------------------------------------");
-            for order in &self.open_orders {
-                let datetime =
-                    chrono::DateTime::<chrono::Utc>::from_timestamp(order.get_timestamp(), 0)
-                        .map(|dt| {
-                            dt.with_timezone(&chrono::Local)
-                                .format("%Y-%m-%d %H:%M:%S")
-                                .to_string()
-                        })
-                        .unwrap_or_else(|| order.get_timestamp().to_string());
-                println!(
-                    "{:<10} {:<8} {:<6} {:<10} {:<12} {:<20}",
-                    order.get_symbol(),
-                    order.get_order_type(),
-                    match order.get_side() {
-                        Side::Buy => "BUY",
-                        Side::Sell => "SELL",
-                    },
-                    order.get_qty(),
-                    order.get_price_per(),
-                    datetime
-                );
-            }
-        }
-
-        // Trades Display
-        if self.trades.is_empty() {
-            println!("\nNO TRADES");
-        } else {
-            println!("\nTRADES:");
-            println!(
-                "{:<10} {:<6} {:<10} {:<12} {:<20}",
-                "Symbol", "Side", "Qty", "Price/Share", "Timestamp"
-            );
-            println!("------------------------------------------------------------------");
-            for trade in &self.trades {
-                // Convert timestamp to human-readable format if possible, otherwise print epoch
-                let datetime =
-                    chrono::DateTime::<chrono::Utc>::from_timestamp(trade.get_timestamp(), 0)
-                        .map(|dt| {
-                            dt.with_timezone(&chrono::Local)
-                                .format("%Y-%m-%d %H:%M:%S")
-                                .to_string()
-                        })
-                        .unwrap_or_else(|| trade.get_timestamp().to_string());
-                println!(
-                    "{:<10} {:<6} {:<10} {:<12} {:<20}",
-                    trade.get_symbol(),
-                    match trade.get_side() {
-                        Side::Buy => "BUY",
-                        Side::Sell => "SELL",
-                    },
-                    trade.get_quantity(),
-                    trade.get_price_per(),
-                    datetime
-                );
-            }
-        }
-        println!(
-            "----------------------------------------------------------------------------------"
-        );
-    }
-
     // Get current cash balance
     pub fn check_balance(&self) -> Decimal {
         self.cash_balance
@@ -218,6 +101,46 @@ impl AppState {
     
     pub fn get_trades(&self) -> Vec<Trade> {
         self.trades.clone()
+    }
+
+    /// Formats trade history as a string for TUI display
+    /// Returns formatted string or "No trades yet" if empty
+    pub fn format_trades(&self) -> String {
+        if self.trades.is_empty() {
+            return "No trades yet".to_string();
+        }
+        
+        let mut result = String::from("Trade History:\n");
+        result.push_str("────────────────────────────────────────────────────────────\n");
+        result.push_str(&format!("{:<10} {:<8} {:<6} {:<8} {:<12} {:<16}\n", "Type", "Symbol", "Side", "Qty", "Price", "Time"));
+        result.push_str("────────────────────────────────────────────────────────────\n");
+        
+        for trade in self.trades.iter().rev().take(20) { // Show last 20, most recent first
+            let datetime = chrono::DateTime::<chrono::Utc>::from_timestamp(trade.get_timestamp(), 0)
+                .map(|dt| dt.with_timezone(&chrono::Local).format("%Y-%m-%d %H:%M").to_string())
+                .unwrap_or_else(|| "Unknown".to_string());
+            
+            let side = match trade.get_side() {
+                Side::Buy => "BUY",
+                Side::Sell => "SELL",
+            };
+            
+            result.push_str(&format!(
+                "{:<10} {:<8} {:<6} {:<8} ${:<11.2} {:<16}\n",
+                trade.get_order_type(),
+                trade.get_symbol(),
+                side,
+                trade.get_quantity(),
+                trade.get_price_per(),
+                datetime
+            ));
+        }
+        
+        if self.trades.len() > 20 {
+            result.push_str(&format!("\n... and {} more trades", self.trades.len() - 20));
+        }
+        
+        result
     }
 
     pub fn add_to_watchlist(&mut self, symbol: Symbol) {
@@ -381,7 +304,7 @@ pub async fn monitor_order(state: Arc<Mutex<AppState>>, running: Arc<AtomicBool>
                     });
                 }
                 for o in orders_executed {
-                    println!("Open order executed: {}", o.get_symbol());
+                    crate::message_queue::send_order_executed(o.get_order_type(), o.get_symbol());
                     state_guard.remove_from_open_orders(o);
                 }
             }

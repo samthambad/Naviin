@@ -14,7 +14,6 @@ pub async fn fund(state: &Arc<Mutex<AppState>>, amount: Decimal) {
     // separate thread not needed since it in run on user input
     let mut state_guard = state.lock().unwrap();
     state_guard.deposit(amount);
-    state_guard.display().await;
 }
 
 // Withdraw funds from user account if sufficient balance available
@@ -29,7 +28,6 @@ pub async fn withdraw(state: &Arc<Mutex<AppState>>, amount: Decimal) {
         return;
     }
     state_guard.withdraw(amount);
-    state_guard.display().await;
 }
 
 pub type Symbol = String;
