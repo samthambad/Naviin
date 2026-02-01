@@ -109,7 +109,7 @@ pub async fn create_sell(state: &Arc<Mutex<AppState>>) {
     } else {
         // add funds
         state_guard.deposit_sell(total_price);
-        remove_from_holdings(&ticker, quantity, &mut (*state_guard)).await;
+        remove_from_holdings(&ticker, quantity, &mut state_guard).await;
         state_guard.add_trade(crate::Orders::Trade::sell(ticker, quantity, curr_price));
     }
 }
@@ -142,7 +142,7 @@ pub async fn create_sell_with_params(
     
     let mut state_guard = state.lock().unwrap();
     state_guard.deposit_sell(total_price);
-    remove_from_holdings(&symbol, quantity, &mut (*state_guard)).await;
+    remove_from_holdings(&symbol, quantity, &mut state_guard).await;
     state_guard.add_trade(crate::Orders::Trade::sell(symbol, quantity, price));
 }
 

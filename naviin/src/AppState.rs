@@ -8,7 +8,6 @@ use rust_decimal::prelude::*;
 use chrono;
 
 use crate::Finance::{Holding, Symbol};
-use crate::FinanceProvider;
 use crate::Orders::{OpenOrder, Side, Trade};
 
 // Manages user account state including cash, holdings, trades, and pending orders
@@ -249,11 +248,11 @@ fn open_order_sorting(order_arr: &mut Vec<OpenOrder>) {
         if a.get_side() != b.get_side() || a.get_symbol() != b.get_symbol() {
             return std::cmp::Ordering::Equal;
         }
-        return if a.get_side() == Side::Buy {
+        if a.get_side() == Side::Buy {
             a.get_price_per().cmp(&b.get_price_per())
         } else {
             b.get_price_per().cmp(&a.get_price_per())
-        };
+        }
     });
 }
 

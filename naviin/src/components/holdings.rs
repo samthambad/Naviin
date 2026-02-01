@@ -118,8 +118,7 @@ impl HoldingsComponent {
         let rows: Vec<Row> = self
             .symbol_list
             .iter()
-            .enumerate()
-            .map(|(_i, symbol)| {
+            .map(|symbol| {
                 let holding = self.holdings.get(symbol).unwrap();
                 let qty = holding.get_qty();
                 let avg = holding.get_avg_price();
