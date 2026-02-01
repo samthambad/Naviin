@@ -65,6 +65,9 @@ pub async fn process_command(
         "stopbg" => handle_stop_bg(running).await,
         "startbg" => handle_start_bg(running).await,
         
+        // Trade history command
+        "trades" => handle_trades(state).await,
+        
         // System commands
         "reset" => handle_reset(state, db).await,
         "clear" => "__CLEAR__".to_string(),
@@ -492,6 +495,15 @@ async fn handle_start_bg(running: &Arc<std::sync::atomic::AtomicBool>) -> String
     "Background order monitoring started".to_string()
 }
 
+/// SECTION: Trade History
+
+/// Displays trade history
+/// Usage: trades
+async fn handle_trades(state: &Arc<Mutex<AppState>>) -> String {
+    let state_guard = state.lock().unwrap();
+    state_guard.format_trades()
+}
+
 /// SECTION: System Commands
 
 /// Resets all data to default state
@@ -520,7 +532,8 @@ fn handle_help() -> String {
         sell <symbol> <qty>        - Sell shares at market price\n\
         buylimit <sym> <qty> <pr>  - Create buy limit order\n\
         stoploss <sym> <qty> <pr>  - Create stop loss order\n\
-        takeprofit <sym> <qty> <pr> - Create take profit order\n\n\
+        takeprofit <sym> <qty> <pr> - Create take profit order\n\
+        trades                     - Show trade history\n\n\
         SYSTEM:\n\
         stopbg                     - Stop background orders\n\
         startbg                    - Start background orders\n\

@@ -45,7 +45,7 @@ async fn load_trades(db: &DatabaseConnection) -> Result<Vec<Trade>, DbErr> {
                 "Sell" => Side::Sell,
                 _ => panic!("Unknown trade side: {}", t.side),
             };
-            Trade::from_database(t.symbol, t.quantity, t.price_per, side, t.timestamp)
+            Trade::from_database(t.symbol, t.quantity, t.price_per, side, t.timestamp, t.order_type)
         })
         .collect();
     Ok(trades)
@@ -132,7 +132,7 @@ async fn sync_trades(txn: &DatabaseTransaction, trades: &[Trade]) -> Result<(), 
                 quantity: Set(trade.get_quantity()),
                 price_per: Set(trade.get_price_per()),
                 side: Set(side_str.to_string()),
-                order_type: Set("Market".to_string()),
+                order_type: Set(trade.get_order_type().clone()),
                 timestamp: Set(trade.get_timestamp()),
             };
             db_trade.insert(txn).await?;

@@ -16,6 +16,7 @@ pub struct Trade {
     price_per: Decimal,
     side: Side,
     timestamp: i64,
+    order_type: String, // "Market", "BuyLimit", "StopLoss", "TakeProfit"
 }
 
 // A completed transaction record for both market orders and executed conditional orders
@@ -28,6 +29,7 @@ impl Trade {
             price_per,
             side: Side::Buy,
             timestamp: Utc::now().timestamp(),
+            order_type: "Market".to_string(),
         }
     }
 
@@ -39,6 +41,31 @@ impl Trade {
             price_per,
             side: Side::Sell,
             timestamp: Utc::now().timestamp(),
+            order_type: "Market".to_string(),
+        }
+    }
+    
+    // Create buy transaction with specific order type
+    fn buy_with_type(symbol: String, quantity: Decimal, price_per: Decimal, order_type: String) -> Self {
+        Self {
+            symbol,
+            quantity,
+            price_per,
+            side: Side::Buy,
+            timestamp: Utc::now().timestamp(),
+            order_type,
+        }
+    }
+    
+    // Create sell transaction with specific order type
+   fn sell_with_type(symbol: String, quantity: Decimal, price_per: Decimal, order_type: String) -> Self {
+        Self {
+            symbol,
+            quantity,
+            price_per,
+            side: Side::Sell,
+            timestamp: Utc::now().timestamp(),
+            order_type,
         }
     }
 
@@ -66,13 +93,18 @@ impl Trade {
         self.timestamp = timestamp;
     }
 
-    pub fn from_database(symbol: String, quantity: Decimal, price_per: Decimal, side: Side, timestamp: i64) -> Self {
+    pub fn get_order_type(&self) -> &String {
+        &self.order_type
+    }
+
+    pub fn from_database(symbol: String, quantity: Decimal, price_per: Decimal, side: Side, timestamp: i64, order_type: String) -> Self {
         Self {
             symbol,
             quantity,
             price_per,
             side,
             timestamp,
+            order_type,
         }
     }
 }
@@ -219,7 +251,7 @@ pub async fn buy_limit(state: &mut AppState, order: &OpenOrder) -> bool {
         }
         state.withdraw_purchase(total_purchase_value);
         crate::Finance::add_to_holdings(&symbol, purchase_qty, curr_price, state).await;
-        state.add_trade(Trade::buy(symbol, purchase_qty, curr_price));
+        state.add_trade(Trade::buy_with_type(symbol, purchase_qty, curr_price, "BuyLimit".to_string()));
         return true;
     }
     false
@@ -235,7 +267,7 @@ pub async fn sell_stop_loss(state: &mut AppState, order: &OpenOrder) -> bool {
     if curr_price <= limit_price {
         state.deposit_sell(total_sale_value);
         crate::Finance::remove_from_holdings(&symbol, sale_qty, state).await;
-        state.add_trade(Trade::sell(symbol, sale_qty, curr_price));
+        state.add_trade(Trade::sell_with_type(symbol, sale_qty, curr_price, "StopLoss".to_string()));
         return true;
     }
     false
@@ -251,7 +283,7 @@ pub async fn sell_take_profit(state: &mut AppState, order: &OpenOrder) -> bool {
     if curr_price >= take_profit_price {
         state.deposit_sell(total_sale_value);
         crate::Finance::remove_from_holdings(&symbol, sale_qty, state).await;
-        state.add_trade(Trade::sell(symbol, sale_qty, take_profit_price));
+        state.add_trade(Trade::sell_with_type(symbol, sale_qty, take_profit_price, "TakeProfit".to_string()));
         return true;
     }
     false
