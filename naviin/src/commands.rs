@@ -46,11 +46,10 @@ pub async fn process_command(
         // Account commands
         "fund" => handle_fund(state, db, args).await,
         "withdraw" => handle_withdraw(state, db, args).await,
-        "display" | "d" => handle_display(state).await,
+        "summary" => handle_summary(state).await,
         
         // Price and watchlist commands
         "price" => handle_price(args).await,
-        "watch" => handle_watch_stream(state).await,
         "addwatch" => handle_add_watch(state, db, args).await,
         "unwatch" => handle_remove_watch(state, db, args).await,
         
@@ -140,14 +139,14 @@ async fn handle_withdraw(
 
 /// Displays account summary
 /// Usage: display or d
-async fn handle_display(state: &Arc<Mutex<AppState>>) -> String {
+async fn handle_summary(state: &Arc<Mutex<AppState>>) -> String {
     let state_guard = state.lock().unwrap();
     let balance = state_guard.check_balance();
     let watchlist = state_guard.get_watchlist();
     let holdings_count = state_guard.get_holdings_map().len();
     
     format!(
-        "Balance: ${}\nWatchlist: {} symbols\nHoldings: {} positions",
+        "Cash balance: ${}\nWatchlist: {} symbols\nHoldings: {} positions",
         balance,
         watchlist.len(),
         holdings_count
@@ -171,28 +170,6 @@ async fn handle_price(args: &[&str]) -> String {
     } else {
         format!("{}: ${:.2}", symbol, price)
     }
-}
-
-/// Streams watchlist prices live
-/// Usage: watch
-async fn handle_watch_stream(state: &Arc<Mutex<AppState>>) -> String {
-    let watchlist = {
-        let state_guard = state.lock().unwrap();
-        state_guard.get_watchlist()
-    };
-    
-    if watchlist.is_empty() {
-        return "Watchlist is empty. Use 'addwatch <symbol>' to add symbols.".to_string();
-    }
-    
-    // Note: In full implementation, this would start a streaming task
-    // For now, just return current prices
-    let mut result = String::from("Watchlist:\n");
-    for symbol in watchlist {
-        let price = FinanceProvider::curr_price(&symbol, false).await;
-        result.push_str(&format!("  {}: ${:.2}\n", symbol, price));
-    }
-    result
 }
 
 /// Adds a symbol to the watchlist
@@ -521,10 +498,9 @@ fn handle_help() -> String {
         ACCOUNT:\n\
         fund <amount>              - Add funds to account\n\
         withdraw <amount>          - Withdraw funds from account\n\
-        display, d                 - Show account summary\n\n\
+        summary                    - Show summary of finances\n\
         PRICES & WATCHLIST:\n\
         price <symbol>             - Get current price for symbol\n\
-        watch                      - Show watchlist with prices\n\
         addwatch <symbol>          - Add symbol to watchlist\n\
         unwatch <symbol>           - Remove symbol from watchlist\n\n\
         TRADING:\n\
@@ -542,8 +518,6 @@ fn handle_help() -> String {
         help                       - Show this help\n\
         exit, quit                 - Exit application\n\n\
         NAVIGATION:\n\
-        Tab                        - Cycle top sections\n\
-        Up/Down                    - Navigate within section\n\
         PgUp/PgDn                  - Scroll output\n\
         Ctrl+Home/Ctrl+End         - Output top/bottom"
     )
