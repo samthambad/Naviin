@@ -304,7 +304,6 @@ pub async fn monitor_order(state: Arc<Mutex<AppState>>, running: Arc<AtomicBool>
                     });
                 }
                 for o in orders_executed {
-                    crate::message_queue::send_order_executed(o.get_order_type(), o.get_symbol());
                     state_guard.remove_from_open_orders(o);
                 }
             }
