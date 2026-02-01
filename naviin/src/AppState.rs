@@ -105,7 +105,7 @@ impl AppState {
 
     /// Formats trade history as a string for TUI display
     /// Returns formatted string or "No trades yet" if empty
-    pub fn format_trades(&self) -> String {
+    pub fn display_trades(&self) -> String {
         if self.trades.is_empty() {
             return "No trades yet".to_string();
         }

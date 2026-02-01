@@ -501,7 +501,7 @@ async fn handle_start_bg(running: &Arc<std::sync::atomic::AtomicBool>) -> String
 /// Usage: trades
 async fn handle_trades(state: &Arc<Mutex<AppState>>) -> String {
     let state_guard = state.lock().unwrap();
-    state_guard.format_trades()
+    state_guard.display_trades()
 }
 
 /// SECTION: System Commands
