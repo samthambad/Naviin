@@ -91,33 +91,41 @@ impl Tui {
     /// SECTION: Main Loop
     
     /// Runs the application's main event loop until user quits
-    /// Uses tokio::select! to handle both user input and periodic refresh
+    /// Uses proper async event handling for responsive input
     pub async fn run<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> io::Result<()>
     where
         io::Error: From<<B as Backend>::Error>,
     {
-        // Initial data refresh
+        // Initial data refresh and draw
         self.refresh_all().await;
+        terminal.draw(|frame| self.draw(frame))?;
         
         // Create a 5-second interval timer for auto-refresh
         let mut refresh_timer = interval(Duration::from_secs(5));
         refresh_timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         
+        // Track if we need to redraw
+        let mut needs_redraw = false;
+        
         while !self.exit {
-            // Draw the UI
-            terminal.draw(|frame| self.draw(frame))?;
+            // Redraw if needed (after input processing or refresh)
+            if needs_redraw {
+                terminal.draw(|frame| self.draw(frame))?;
+                needs_redraw = false;
+            }
             
-            // Wait for either an event or a timer tick
+            // Wait for events with timeout (50ms for responsiveness)
+            // This allows checking refresh timer while waiting for input
             tokio::select! {
-                // Handle keyboard events (with 100ms timeout to keep UI responsive)
-                _ = tokio::time::sleep(Duration::from_millis(100)) => {
-                    // Check for events without blocking
-                    if event::poll(Duration::from_millis(0))? {
-                        if let Event::Key(key_event) = event::read()? {
-                            if key_event.kind == KeyEventKind::Press {
-                                self.handle_key_event(key_event).await;
-                            }
+                // Check for crossterm events
+                event_result = Self::wait_for_event() => {
+                    match event_result {
+                        Ok(Some(Event::Key(key_event))) if key_event.kind == KeyEventKind::Press => {
+                            self.handle_key_event(key_event).await;
+                            needs_redraw = true; // Redraw after input
                         }
+                        Ok(_) => {} // Other events (resize, etc)
+                        Err(_) => {} // Error reading event
                     }
                 }
                 
@@ -125,10 +133,26 @@ impl Tui {
                 _ = refresh_timer.tick() => {
                     self.refresh_prices_only().await;
                     self.last_refresh = Instant::now();
+                    needs_redraw = true; // Redraw after price refresh
                 }
             }
         }
         Ok(())
+    }
+    
+    /// Async helper to wait for crossterm events
+    /// Uses spawn_blocking to make crossterm's blocking call async-friendly
+    async fn wait_for_event() -> io::Result<Option<Event>> {
+        // Use a short timeout so we can also check for messages and timer
+        tokio::task::spawn_blocking(|| {
+            if event::poll(Duration::from_millis(50))? {
+                Ok(Some(event::read()?))
+            } else {
+                Ok(None)
+            }
+        })
+        .await
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?
     }
 
     /// SECTION: Rendering
