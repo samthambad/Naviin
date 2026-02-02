@@ -29,20 +29,10 @@ use crate::components::output::OutputComponent;
 use crate::components::watchlist::WatchlistComponent;
 use crate::Finance::Symbol;
 
-/// Tracks which of the three top components is currently active for navigation
-#[derive(Debug, Clone, Copy, PartialEq)]
-enum TopSection {
-    Holdings,
-    OpenOrders,
-    Watchlist,
-}
-
 /// Main TUI application state and coordinator
 pub struct Tui {
     /// Flag to indicate if the application should exit
     exit: bool,
-    /// Currently active top section for navigation
-    active_top: TopSection,
     /// Top left: Holdings component
     holdings: HoldingsComponent,
     /// Top middle: Open orders component
@@ -75,7 +65,6 @@ impl Tui {
     ) -> Self {
         Self {
             exit: false,
-            active_top: TopSection::Holdings,
             holdings: HoldingsComponent::new(),
             open_orders: OpenOrdersComponent::new(),
             watchlist: WatchlistComponent::new(symbols),
@@ -231,14 +220,7 @@ impl Tui {
             
             // Command execution
             KeyCode::Enter => self.execute_command().await,
-            
-            // Top section navigation (Tab cycles through Holdings -> OpenOrders -> Watchlist)
-            KeyCode::Tab => self.cycle_top_section(),
-            
-            // Navigation within active top section (Up/Down)
-            KeyCode::Up => self.navigate_top_previous(),
-            KeyCode::Down => self.navigate_top_next(),
-            
+
             // Output scrolling
             KeyCode::PageUp => self.output.scroll_up(5),
             KeyCode::PageDown => self.output.scroll_down(5),
@@ -250,35 +232,6 @@ impl Tui {
             }
             
             _ => {}
-        }
-    }
-
-    /// SECTION: Top Section Navigation
-
-    /// Cycles to the next top section (Holdings -> OpenOrders -> Watchlist -> Holdings)
-    fn cycle_top_section(&mut self) {
-        self.active_top = match self.active_top {
-            TopSection::Holdings => TopSection::OpenOrders,
-            TopSection::OpenOrders => TopSection::Watchlist,
-            TopSection::Watchlist => TopSection::Holdings,
-        };
-    }
-
-    /// Navigates to previous item in the active top section
-    fn navigate_top_previous(&mut self) {
-        match self.active_top {
-            TopSection::Holdings => self.holdings.previous(),
-            TopSection::OpenOrders => self.open_orders.previous(),
-            TopSection::Watchlist => self.watchlist.previous(),
-        }
-    }
-
-    /// Navigates to next item in the active top section
-    fn navigate_top_next(&mut self) {
-        match self.active_top {
-            TopSection::Holdings => self.holdings.next(),
-            TopSection::OpenOrders => self.open_orders.next(),
-            TopSection::Watchlist => self.watchlist.next(),
         }
     }
 
