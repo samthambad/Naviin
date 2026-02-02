@@ -25,6 +25,7 @@ async fn load_app_state(db: &DatabaseConnection) -> Result<Option<rust_decimal::
     }
 }
 
+/// Loads all holdings from the database into a HashMap keyed by symbol.
 async fn load_holdings(db: &DatabaseConnection) -> Result<HashMap<String, Holding>, DbErr> {
     let holdings_models = HoldingEntity::find().all(db).await?;
     let mut holdings_map: HashMap<String, Holding> = HashMap::new();
@@ -80,6 +81,7 @@ async fn load_open_orders(db: &DatabaseConnection) -> Result<Vec<OpenOrder>, DbE
     Ok(open_orders)
 }
 
+/// Synchronizes the holdings in the database with the provided list, updating existing or inserting new ones.
 async fn sync_holdings(
     txn: &DatabaseTransaction,
     holdings: &[(String, rust_decimal::Decimal, rust_decimal::Decimal)],
@@ -108,6 +110,7 @@ async fn sync_holdings(
     Ok(())
 }
 
+/// Synchronizes the trades in the database, inserting new ones if they don't exist.
 async fn sync_trades(txn: &DatabaseTransaction, trades: &[Trade]) -> Result<(), DbErr> {
     let existing_trades = TradeEntity::find().all(txn).await?;
 
@@ -141,6 +144,7 @@ async fn sync_trades(txn: &DatabaseTransaction, trades: &[Trade]) -> Result<(), 
     Ok(())
 }
 
+/// Synchronizes the open orders in the database by deleting all and re-inserting.
 async fn sync_open_orders(
     txn: &DatabaseTransaction,
     open_orders: &[OpenOrder],
@@ -187,6 +191,7 @@ async fn load_watchlist(db: &DatabaseConnection) -> Result<Vec<Symbol>, DbErr> {
     Ok(watchlist)
 }
 
+/// Synchronizes the watchlist in the database by deleting all and re-inserting.
 async fn sync_watchlist(
     txn: &DatabaseTransaction,
     watchlist: &[Symbol],
@@ -208,6 +213,7 @@ pub fn username_checker(username: &String) -> bool {
     true
 }
 
+/// Saves the current app state to the database.
 pub async fn save_state(state: &Arc<Mutex<AppState>>, db: &DatabaseConnection) {
     // No cloning of arc mutex needed here, only required for threads
     // get relevant data first to not block more than required
@@ -259,6 +265,7 @@ pub async fn save_state(state: &Arc<Mutex<AppState>>, db: &DatabaseConnection) {
         .ok();
 }
 
+/// Loads the app state from the database, or initializes a new one if not found.
 pub async fn load_state() -> Arc<Mutex<AppState>> {
     let database_url =
         env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite://db.sqlite".to_string());
@@ -296,6 +303,7 @@ pub async fn load_state() -> Arc<Mutex<AppState>> {
     }
 }
 
+/// Resets the app state to default and clears the database.
 pub async fn default_state(state: &Arc<Mutex<AppState>>, db: &DatabaseConnection) {
     {
         let mut state_guard = state.lock().unwrap();

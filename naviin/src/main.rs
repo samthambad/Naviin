@@ -119,7 +119,7 @@ async fn main() {
         running.clone(),
     );
     
-    // Run the TUI event loop (this is now properly async)
+    // Run the TUI event loop
     let tui_result = tui.run(&mut terminal).await;
     
     // Handle TUI errors
