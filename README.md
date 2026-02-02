@@ -21,7 +21,7 @@ Naviin is evolving from a paper trading tool into a robust platform for financia
 ### Phase 1:
 - [x] Advanced Order Execution: Stop-Loss and Take-Profit orders.
 - [x] Persistent Relational Storage: Migration to SQL for scalable trade history.
-- [ ] Better User Experience
+- [x] Better User Experience
 
 ### Phase 2: Technical Analysis & Strategy Engine
 - Options
