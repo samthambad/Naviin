@@ -1,8 +1,5 @@
 use rust_decimal::prelude::*;
 use yfinance_rs::{Ticker, YfClient};
-use crossterm::event::{self, Event, KeyCode};
-use std::time::Duration;
-use std::io::Write;
 
 pub async fn previous_price_close(symbol: &String, print: bool) -> Decimal {
     let client = YfClient::default();
