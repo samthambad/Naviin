@@ -79,8 +79,7 @@ impl Tui {
 
     /// SECTION: Main Loop
     
-    /// Runs the application's main event loop until user quits
-    /// Uses proper async event handling for responsive input
+    /// Runs the application's main event loop until user quits, async event handling for responsive input
     pub async fn run<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> io::Result<()>
     where
         io::Error: From<<B as Backend>::Error>,
@@ -102,9 +101,9 @@ impl Tui {
                 terminal.draw(|frame| self.draw(frame))?;
                 needs_redraw = false;
             }
-            
-            // Wait for events with timeout (50ms for responsiveness)
-            // This allows checking refresh timer while waiting for input
+
+            // concurrent: checking for input while refreshing, 
+            // do whatever comes first skip the other one as both update the ui needed as either could overrun
             tokio::select! {
                 // Check for crossterm events
                 event_result = Self::wait_for_event() => {
@@ -148,7 +147,7 @@ impl Tui {
     
     /// Draws all UI components in their assigned areas
     fn draw(&self, frame: &mut Frame) {
-        let areas = self.calculate_layout(frame.area());
+        let areas = self.calculate_layout(frame.area()); // in case user resizes terminal window
         
         // Render top row (3 components horizontally)
         frame.render_widget(&self.holdings, areas.holdings);
@@ -200,7 +199,7 @@ impl Tui {
     async fn handle_key_event(&mut self, key_event: KeyEvent) {
         match key_event.code {
             // Global quit
-            KeyCode::Char('q') if key_event.modifiers.is_empty() => {
+            KeyCode::Char('Q')  => {
                 self.exit();
             }
             
@@ -244,23 +243,19 @@ impl Tui {
         // Commit output to history
         self.output.commit_to_history();
         
-        // Clear input
         self.input.clear();
         
-        // Check for exit command
         if command.eq_ignore_ascii_case("exit") || command.eq_ignore_ascii_case("quit") {
             self.exit();
             return;
         }
         
-        // Check for clear command
         if command.eq_ignore_ascii_case("clear") {
             self.output.clear();
             self.output.set_output("Screen cleared".to_string());
             return;
         }
         
-        // Process command and get result
         let result = process_command(
             &command,
             &self.state,
