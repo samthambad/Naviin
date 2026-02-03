@@ -41,44 +41,6 @@ impl OpenOrdersComponent {
         }
     }
 
-    /// SECTION: Navigation
-
-    /// Moves to next order
-    pub fn next(&mut self) {
-        if self.orders.is_empty() {
-            return;
-        }
-        let i = match self.table_state.selected() {
-            Some(i) => {
-                if i >= self.orders.len() - 1 {
-                    0
-                } else {
-                    i + 1
-                }
-            }
-            None => 0,
-        };
-        self.table_state.select(Some(i));
-    }
-
-    /// Moves to previous order
-    pub fn previous(&mut self) {
-        if self.orders.is_empty() {
-            return;
-        }
-        let i = match self.table_state.selected() {
-            Some(i) => {
-                if i == 0 {
-                    self.orders.len() - 1
-                } else {
-                    i - 1
-                }
-            }
-            None => 0,
-        };
-        self.table_state.select(Some(i));
-    }
-
     /// SECTION: Rendering
 
     fn render_table(&self, area: Rect, buf: &mut Buffer) {

@@ -68,46 +68,6 @@ impl WatchlistComponent {
         }
     }
 
-    /// SECTION: Navigation
-    
-    /// Moves selection to the next symbol in the list
-    /// Wraps around to the first item if at the end
-    pub fn next(&mut self) {
-        if self.symbols.is_empty() {
-            return;
-        }
-        let i = match self.table_state.selected() {
-            Some(i) => {
-                if i >= self.symbols.len() - 1 {
-                    0
-                } else {
-                    i + 1
-                }
-            }
-            None => 0,
-        };
-        self.table_state.select(Some(i));
-    }
-
-    /// Moves selection to the previous symbol in the list
-    /// Wraps around to the last item if at the beginning
-    pub fn previous(&mut self) {
-        if self.symbols.is_empty() {
-            return;
-        }
-        let i = match self.table_state.selected() {
-            Some(i) => {
-                if i == 0 {
-                    self.symbols.len() - 1
-                } else {
-                    i - 1
-                }
-            }
-            None => 0,
-        };
-        self.table_state.select(Some(i));
-    }
-
     /// SECTION: Rendering
     
     /// Renders the watchlist table with headers and data rows

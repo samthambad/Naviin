@@ -65,44 +65,6 @@ impl HoldingsComponent {
         }
     }
 
-    /// SECTION: Navigation
-
-    /// Moves to next holding
-    pub fn next(&mut self) {
-        if self.symbol_list.is_empty() {
-            return;
-        }
-        let i = match self.table_state.selected() {
-            Some(i) => {
-                if i >= self.symbol_list.len() - 1 {
-                    0
-                } else {
-                    i + 1
-                }
-            }
-            None => 0,
-        };
-        self.table_state.select(Some(i));
-    }
-
-    /// Moves to previous holding
-    pub fn previous(&mut self) {
-        if self.symbol_list.is_empty() {
-            return;
-        }
-        let i = match self.table_state.selected() {
-            Some(i) => {
-                if i == 0 {
-                    self.symbol_list.len() - 1
-                } else {
-                    i - 1
-                }
-            }
-            None => 0,
-        };
-        self.table_state.select(Some(i));
-    }
-
     /// SECTION: Rendering
 
     fn render_table(&self, area: Rect, buf: &mut Buffer) {
