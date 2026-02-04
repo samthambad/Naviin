@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 
 use rust_decimal::Decimal;
 
-use crate::AppState::AppState;
+use crate::AppState::{monitor_order, AppState};
 use crate::Finance;
 use crate::FinanceProvider;
 use crate::Orders;
@@ -62,7 +62,7 @@ pub async fn process_command(
         
         // Background order commands
         "stopbg" => handle_stop_bg(running).await,
-        "startbg" => handle_start_bg(running).await,
+        "startbg" => handle_start_bg(state.clone(), running).await,
         
         // Trade history command
         "trades" => handle_trades(state).await,
@@ -467,8 +467,9 @@ async fn handle_stop_bg(running: &Arc<std::sync::atomic::AtomicBool>) -> String 
 
 /// Starts background order monitoring
 /// Usage: startbg
-async fn handle_start_bg(running: &Arc<std::sync::atomic::AtomicBool>) -> String {
+async fn handle_start_bg(state: Arc<Mutex<AppState>>, running: &Arc<std::sync::atomic::AtomicBool>) -> String {
     running.store(true, std::sync::atomic::Ordering::Relaxed);
+    monitor_order(state, running.clone()).await;
     "Background order monitoring started".to_string()
 }
 
