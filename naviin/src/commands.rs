@@ -10,6 +10,7 @@ use rust_decimal::Decimal;
 use crate::AppState::{monitor_order, AppState};
 use crate::Finance;
 use crate::FinanceProvider;
+use crate::import;
 use crate::Orders;
 use crate::Storage;
 
@@ -33,12 +34,17 @@ pub async fn process_command(
     db: &DatabaseConnection,
     running: &Arc<std::sync::atomic::AtomicBool>,
 ) -> String {
-    let parts: Vec<&str> = command.trim().split_whitespace().collect();
-    
-    if parts.is_empty() {
+    let trimmed = command.trim();
+    if trimmed.is_empty() {
         return "Empty command".to_string();
     }
-    
+
+    let pending_import = { state.lock().unwrap().is_pending_import() };
+    if pending_import {
+        return handle_import_path(trimmed, state, db).await;
+    }
+
+    let parts: Vec<&str> = trimmed.split_whitespace().collect();
     let cmd = parts[0].to_lowercase();
     let args = &parts[1..];
     
@@ -66,8 +72,9 @@ pub async fn process_command(
         
         // Trade history command
         "trades" => handle_trades(state).await,
-        
+
         // System commands
+        "import" => handle_import(state, db).await,
         "reset" => handle_reset(state, db).await,
         "clear" => "__CLEAR__".to_string(),
         "help" => handle_help(),
@@ -483,6 +490,43 @@ async fn handle_trades(state: &Arc<Mutex<AppState>>) -> String {
 }
 
 /// SECTION: System Commands
+/// Import past trades using user-provided csv file
+async fn handle_import(state: &Arc<Mutex<AppState>>) -> String {
+    {
+        let mut guard = state.lock().unwrap();
+        guard.set_pending_import(true);
+    }
+
+    let mut message = String::from("Enter the path of your csv file (or 'cancel' to go back):\n");
+    message.push_str("The csv format should be:\n");
+    message.push_str("date,asset,asset_type,side,quantity,price,currency");
+    message
+}
+
+async fn handle_import_path(
+    input: &str,
+    state: &Arc<Mutex<AppState>>,
+    db: &DatabaseConnection,
+) -> String {
+    let path = input.trim().trim_matches('"');
+    if path.eq_ignore_ascii_case("cancel") || path.is_empty() {
+        let mut guard = state.lock().unwrap();
+        guard.set_pending_import(false);
+        return "Import cancelled".to_string();
+    }
+
+    let result = match import::import_trades_from_csv(state, path).await {
+        Ok(report) => {
+            Storage::save_state(state, db).await;
+            report
+        }
+        Err(err) => err,
+    };
+
+    let mut guard = state.lock().unwrap();
+    guard.set_pending_import(false);
+    result
+}
 
 /// Resets all data to default state
 /// Usage: reset
@@ -512,6 +556,7 @@ fn handle_help() -> String {
         takeprofit <sym> <qty> <pr> - Create take profit order\n\
         trades                     - Show trade history\n\n\
         SYSTEM:\n\
+        import                     - Start the import process to load previous trades\n\
         stopbg                     - Stop background orders\n\
         startbg                    - Start background orders\n\
         reset                      - Reset all data\n\

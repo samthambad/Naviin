@@ -18,6 +18,7 @@ pub struct AppState {
     trades: Vec<Trade>,
     open_orders: Vec<OpenOrder>,
     watchlist: Vec<Symbol>,
+    pending_import: bool,
 }
 
 impl Default for AppState {
@@ -34,6 +35,7 @@ impl AppState {
             trades: Vec::new(),
             open_orders: Vec::new(),
             watchlist: Vec::new(),
+            pending_import: false,
         }
     }
 
@@ -166,6 +168,14 @@ impl AppState {
 
     pub fn set_watchlist(&mut self, watchlist: Vec<Symbol>) {
         self.watchlist = watchlist;
+    }
+
+    pub fn set_pending_import(&mut self, pending: bool) {
+        self.pending_import = pending;
+    }
+
+    pub fn is_pending_import(&self) -> bool {
+        self.pending_import
     }
 
     // Get quantity of shares held for a specific ticker
