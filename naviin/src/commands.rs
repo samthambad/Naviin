@@ -215,14 +215,17 @@ async fn handle_remove_watch(
     }
     
     let symbol = args[0].to_uppercase();
-    
+    let mut action_result = false; 
     {
         let mut state_guard = state.lock().unwrap();
-        state_guard.remove_from_watchlist(symbol.clone());
+       action_result = state_guard.remove_from_watchlist(symbol.clone());
     }
-    
-    Storage::save_state(state, db).await;
-    format!("Removed {} from watchlist", symbol)
+    if action_result {
+        Storage::save_state(state, db).await;
+        return format!("Removed {} from watchlist", symbol);
+    }
+    format!("Error removing {} from watchlist", symbol)
+     
 }
 
 /// SECTION: Trading Commands

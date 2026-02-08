@@ -152,13 +152,12 @@ impl AppState {
         false
     }
 
-    pub fn remove_from_watchlist(&mut self, symbol: Symbol) {
+    pub fn remove_from_watchlist(&mut self, symbol: Symbol) -> bool {
         if let Some(pos) = self.watchlist.iter().position(|x| *x == symbol) {
             self.watchlist.remove(pos);
-            println!("Removed from watchlist");
-        } else {
-            println!("Not in watchlist");
+            return true;
         }
+        false
     }
 
     pub fn get_watchlist(&self) -> Vec<Symbol> {
