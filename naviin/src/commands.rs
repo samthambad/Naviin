@@ -74,7 +74,7 @@ pub async fn process_command(
         "trades" => handle_trades(state).await,
 
         // System commands
-        "import" => handle_import(state, db).await,
+        "import" => handle_import(state).await,
         "reset" => handle_reset(state, db).await,
         "clear" => "__CLEAR__".to_string(),
         "help" => handle_help(),
@@ -191,14 +191,16 @@ async fn handle_add_watch(
     }
     
     let symbol = args[0].to_uppercase();
-    
+    let mut action_result = false;
     {
         let mut state_guard = state.lock().unwrap();
-        state_guard.add_to_watchlist(symbol.clone());
+        action_result = state_guard.add_to_watchlist(symbol.clone());
     }
-    
-    Storage::save_state(state, db).await;
-    format!("Added {} to watchlist", symbol)
+    if action_result {
+        Storage::save_state(state, db).await;
+        return format!("Added {} to watchlist", symbol);
+    }
+    format!("Error adding {} to watchlist", symbol)
 }
 
 /// Removes a symbol from the watchlist

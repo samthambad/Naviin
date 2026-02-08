@@ -144,13 +144,12 @@ impl AppState {
         result
     }
 
-    pub fn add_to_watchlist(&mut self, symbol: Symbol) {
+    pub fn add_to_watchlist(&mut self, symbol: Symbol) -> bool {
         if !self.watchlist.contains(&symbol) {
             self.watchlist.push(symbol);
-            println!("Added to watchlist");
-        } else {
-            println!("Already in watchlist");
+            return true;
         }
+        false
     }
 
     pub fn remove_from_watchlist(&mut self, symbol: Symbol) {
