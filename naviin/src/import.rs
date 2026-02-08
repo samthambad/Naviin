@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
@@ -33,6 +34,28 @@ pub async fn import_trades_from_csv(
     };
 
     let headers = parse_csv_row(&header_line);
+    let header_map = build_header_map(&headers);
+
+    for required in ["date", "asset", "asset_type", "side", "quantity", "price"] {
+        if !header_map.contains_key(required) {
+            return Err(format!("Missing required column: {required}"));
+        }
+    }
+
+
+
+
+
+fn build_header_map(headers: &[String]) -> HashMap<String, usize> {
+    let mut map = HashMap::new();
+    for (idx, header) in headers.iter().enumerate() {
+        let key = header.trim().to_lowercase();
+        if !key.is_empty() {
+            map.insert(key, idx);
+        }
+    }
+    map
+}
 
 fn parse_csv_row(line: &str) -> Vec<String> {
     let mut out = Vec::new();
@@ -60,3 +83,4 @@ fn parse_csv_row(line: &str) -> Vec<String> {
     out.push(current.trim().to_string());
     out
 }
+
