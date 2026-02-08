@@ -75,6 +75,65 @@ pub async fn import_trades_from_csv(
             }
         };
 
+        match row.side {
+            Side::Buy => {
+                let mut trade = Trade::buy(row.asset.clone(), row.quantity, row.price);
+                trade.set_timestamp(parse_date_to_timestamp(&row.date));
+                {
+                    let mut guard = state.lock().unwrap();
+                    guard.add_trade(trade);
+                }
+                Finance::add_to_holdings(&row.asset, row.quantity, row.price, &mut state.lock().unwrap()).await;
+            }
+            Side::Sell => {
+                let available_qty = { state.lock().unwrap().get_ticker_holdings_qty(&row.asset) };
+                if available_qty < row.quantity {
+                    errors += 1;
+                    skipped += 1;
+                    push_error(
+                        &mut last_errors,
+                        format!(
+                            "Line {line_number}: Insufficient holdings for {} (have {}, need {})",
+                            row.asset, available_qty, row.quantity
+                        ),
+                    );
+                    continue;
+                }
+                let mut trade = Trade::sell(row.asset.clone(), row.quantity, row.price);
+                trade.set_timestamp(parse_date_to_timestamp(&row.date));
+                {
+                    let mut guard = state.lock().unwrap();
+                    guard.add_trade(trade);
+                }
+                Finance::remove_from_holdings(&row.asset, row.quantity, &mut state.lock().unwrap()).await;
+            }
+        }
+        imported += 1;
+    }
+
+    if imported == 0 && errors > 0 {
+        return Err(format!(
+            "No trades imported. Errors: {errors}. Example: {}",
+            last_errors.join(" | ")
+        ));
+    }
+
+    if errors > 0 {
+        Ok(format!(
+            "Imported {imported} trades ({skipped} skipped). {errors} errors. Example: {}",
+            last_errors.join(" | ")
+        ))
+    } else {
+        Ok(format!("Imported {imported} trades ({skipped} skipped)."))
+    }
+}
+
+fn push_error(errors: &mut Vec<String>, msg: String) {
+    if errors.len() < 3 {
+        errors.push(msg);
+    }
+}
+
 fn parse_trade_row(
     cols: &[String],
     header_map: &HashMap<String, usize>,
@@ -190,3 +249,20 @@ fn parse_csv_row(line: &str) -> Vec<String> {
     out
 }
 
+fn parse_date_to_timestamp(date: &str) -> i64 {
+    let trimmed = date.trim();
+    if trimmed.is_empty() {
+        return chrono::Utc::now().timestamp();
+    }
+
+    if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(trimmed) {
+        return dt.timestamp();
+    }
+
+    if let Ok(date_only) = chrono::NaiveDate::parse_from_str(trimmed, "%Y-%m-%d") {
+        return chrono::DateTime::<chrono::Utc>::from_utc(date_only.and_hms_opt(0, 0, 0).unwrap(), chrono::Utc)
+            .timestamp();
+    }
+
+    chrono::Utc::now().timestamp()
+}
