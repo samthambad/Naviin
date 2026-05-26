@@ -119,92 +119,50 @@ pub enum OrderType {
 
 // A pending order waiting for execution conditions to be met
 #[derive(Clone, Debug)]
-pub enum OpenOrder {
-    BuyLimit {
-        symbol: String,
-        quantity: Decimal,
-        price: Decimal,
-        timestamp: i64,
-    },
-    StopLoss {
-        symbol: String,
-        quantity: Decimal,
-        price: Decimal,
-        timestamp: i64,
-    },
-    TakeProfit {
-        symbol: String,
-        quantity: Decimal,
-        price: Decimal,
-        timestamp: i64,
-    },
+pub struct OpenOrder {
+    symbol: String,
+    quantity: Decimal,
+    price: Decimal,
+    timestamp: i64,
+    order_type: OrderType,
+    side: Side,
 }
 
 impl OpenOrder {
-    pub fn new(symbol: String, quantity: Decimal, price: Decimal, side: Side) -> Self {
+    pub fn new(symbol: String, quantity: Decimal, price: Decimal, order_type: OrderType, side: Side) -> Self {
         let timestamp = Utc::now().timestamp();
-        match side {
-            Side::Buy => OpenOrder::BuyLimit {
-                symbol,
-                quantity,
-                price,
-                timestamp,
-            },
-            Side::Sell => OpenOrder::StopLoss {
-                symbol,
-                quantity,
-                price,
-                timestamp,
-            },
+        Self {
+            symbol,
+            quantity,
+            price,
+            timestamp,
+            order_type,
+            side
         }
     }
 
     pub fn get_symbol(&self) -> &String {
-        match self {
-            OpenOrder::BuyLimit { symbol, .. } => symbol,
-            OpenOrder::StopLoss { symbol, .. } => symbol,
-            OpenOrder::TakeProfit { symbol, .. } => symbol,
-        }
+        &self.symbol
     }
 
     pub fn get_qty(&self) -> Decimal {
-        match self {
-            OpenOrder::BuyLimit { quantity, .. } => *quantity,
-            OpenOrder::StopLoss { quantity, .. } => *quantity,
-            OpenOrder::TakeProfit { quantity, .. } => *quantity,
-        }
+        self.quantity
     }
 
     pub fn get_price_per(&self) -> Decimal {
-        match self {
-            OpenOrder::BuyLimit { price, .. } => *price,
-            OpenOrder::StopLoss { price, .. } => *price,
-            OpenOrder::TakeProfit { price, .. } => *price,
-        }
+        self.price
     }
 
     pub fn get_timestamp(&self) -> i64 {
-        match self {
-            OpenOrder::BuyLimit { timestamp, .. } => *timestamp,
-            OpenOrder::StopLoss { timestamp, .. } => *timestamp,
-            OpenOrder::TakeProfit { timestamp, .. } => *timestamp,
-        }
+        self.timestamp
     }
 
     pub fn get_side(&self) -> Side {
-        match self {
-            OpenOrder::BuyLimit { .. } => Side::Buy,
-            OpenOrder::StopLoss { .. } => Side::Sell,
-            OpenOrder::TakeProfit { .. } => Side::Sell,
-        }
+        self.side.clone()
     }
 
-    pub fn get_order_type(&self) -> &str {
-        match self {
-            OpenOrder::BuyLimit { .. } => "BuyLimit",
-            OpenOrder::StopLoss { .. } => "StopLoss",
-            OpenOrder::TakeProfit { .. } => "TakeProfit",
-        }
+    pub fn get_order_type(&self) -> OrderType {
+        self.order_type.clone()
     }
 }
 
@@ -215,23 +173,29 @@ pub fn create_order(order_type: OrderType) -> Option<OpenOrder> {
     let price = UserInput::ask_price()?;
 
     let order = match order_type {
-        OrderType::BuyLimit => OpenOrder::BuyLimit {
+        OrderType::BuyLimit => OpenOrder {
             symbol,
             quantity,
             price,
             timestamp: Utc::now().timestamp(),
+            order_type: OrderType::BuyLimit,
+            side: Side::Buy,
         },
-        OrderType::StopLoss => OpenOrder::StopLoss {
+        OrderType::StopLoss => OpenOrder {
             symbol,
             quantity,
             price,
             timestamp: Utc::now().timestamp(),
+            order_type: OrderType::StopLoss,
+            side: Side::Sell
         },
-        OrderType::TakeProfit => OpenOrder::TakeProfit {
+        OrderType::TakeProfit => OpenOrder {
             symbol,
             quantity,
             price,
             timestamp: Utc::now().timestamp(),
+            order_type: OrderType::TakeProfit,
+            side: Side::Sell
         },
     };
     Some(order)
