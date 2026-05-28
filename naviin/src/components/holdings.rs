@@ -1,7 +1,6 @@
 /// Holdings Component - Displays owned stock positions
-/// 
+///
 /// Shows current holdings with quantity, average cost, current price, and P&L.
-
 use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Rect},
@@ -85,7 +84,7 @@ impl HoldingsComponent {
                 let qty = holding.get_qty();
                 let avg = holding.get_avg_price();
                 let curr_price = self.prices.get(symbol).copied().unwrap_or(Decimal::ZERO);
-                
+
                 // Calculate P&L
                 let pnl = (curr_price - avg) * qty;
                 let pnl_str = if curr_price == Decimal::ZERO {
@@ -93,13 +92,18 @@ impl HoldingsComponent {
                 } else {
                     format!("{:.2}", pnl)
                 };
-                let pnl_color = if pnl >= Decimal::ZERO { Color::Green } else { Color::Red };
+                let pnl_color = if pnl >= Decimal::ZERO {
+                    Color::Green
+                } else {
+                    Color::Red
+                };
 
                 let cells = vec![
                     Cell::from(symbol.clone()),
                     Cell::from(format!("{:.2}", qty)),
                     Cell::from(format!("{:.2}", avg)),
-                    Cell::from(format!("{:.2}", curr_price)).style(Style::default().fg(Color::Green)),
+                    Cell::from(format!("{:.2}", curr_price))
+                        .style(Style::default().fg(Color::Green)),
                     Cell::from(pnl_str).style(Style::default().fg(pnl_color)),
                 ];
 
@@ -109,7 +113,7 @@ impl HoldingsComponent {
 
         // Format title with cash balance
         let title = format!(" Holdings | Cash: ${:.2} ", self.cash);
-        
+
         let table = Table::new(
             rows,
             &[
@@ -125,7 +129,7 @@ impl HoldingsComponent {
             Block::default()
                 .borders(Borders::ALL)
                 .border_set(border::ROUNDED)
-                .title(title.bold())
+                .title(title.bold()),
         )
         .row_highlight_style(Style::default().bg(Color::DarkGray).fg(Color::White))
         .highlight_symbol("> ");

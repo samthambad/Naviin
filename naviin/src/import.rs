@@ -83,7 +83,13 @@ pub async fn import_trades_from_csv(
                     let mut guard = state.lock().unwrap();
                     guard.add_trade(trade);
                 }
-                Finance::add_to_holdings(&row.asset, row.quantity, row.price, &mut state.lock().unwrap()).await;
+                Finance::add_to_holdings(
+                    &row.asset,
+                    row.quantity,
+                    row.price,
+                    &mut state.lock().unwrap(),
+                )
+                .await;
             }
             Side::Sell => {
                 let available_qty = { state.lock().unwrap().get_ticker_holdings_qty(&row.asset) };
@@ -105,7 +111,8 @@ pub async fn import_trades_from_csv(
                     let mut guard = state.lock().unwrap();
                     guard.add_trade(trade);
                 }
-                Finance::remove_from_holdings(&row.asset, row.quantity, &mut state.lock().unwrap()).await;
+                Finance::remove_from_holdings(&row.asset, row.quantity, &mut state.lock().unwrap())
+                    .await;
             }
         }
         imported += 1;
@@ -198,7 +205,10 @@ fn get_value(
     key: &str,
 ) -> Result<String, String> {
     match header_map.get(key) {
-        Some(&idx) => Ok(cols.get(idx).map(|v| v.trim().to_string()).unwrap_or_default()),
+        Some(&idx) => Ok(cols
+            .get(idx)
+            .map(|v| v.trim().to_string())
+            .unwrap_or_default()),
         None => Err(format!("Missing {key} column")),
     }
 }
@@ -260,8 +270,11 @@ fn parse_date_to_timestamp(date: &str) -> i64 {
     }
 
     if let Ok(date_only) = chrono::NaiveDate::parse_from_str(trimmed, "%Y-%m-%d") {
-        return chrono::DateTime::<chrono::Utc>::from_utc(date_only.and_hms_opt(0, 0, 0).unwrap(), chrono::Utc)
-            .timestamp();
+        return chrono::DateTime::<chrono::Utc>::from_utc(
+            date_only.and_hms_opt(0, 0, 0).unwrap(),
+            chrono::Utc,
+        )
+        .timestamp();
     }
 
     chrono::Utc::now().timestamp()

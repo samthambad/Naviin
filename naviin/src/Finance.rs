@@ -1,6 +1,6 @@
+use rust_decimal::prelude::*;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use rust_decimal::prelude::*;
 
 use crate::{AppState::AppState, FinanceProvider, UserInput};
 
@@ -70,7 +70,7 @@ pub async fn create_buy(state: &Arc<Mutex<AppState>>) {
         Some(t) => t,
         None => return,
     };
-    let purchase_qty= match UserInput::ask_quantity() {
+    let purchase_qty = match UserInput::ask_quantity() {
         Some(q) => q,
         None => return,
     };
@@ -98,7 +98,7 @@ pub async fn create_sell(state: &Arc<Mutex<AppState>>) {
         Some(q) => q,
         None => return,
     };
-    let curr_price= FinanceProvider::curr_price(&ticker, false).await;
+    let curr_price = FinanceProvider::curr_price(&ticker, false).await;
     let total_price = curr_price * quantity;
     println!("The total price of sale is: {total_price}");
 
@@ -124,7 +124,7 @@ pub async fn create_buy_with_params(
     price: Decimal,
 ) {
     let total_price = price * quantity;
-    
+
     let mut state_guard = state.lock().unwrap();
     state_guard.withdraw_purchase(total_price);
     add_to_holdings(&symbol, quantity, price, &mut state_guard).await;
@@ -139,7 +139,7 @@ pub async fn create_sell_with_params(
     price: Decimal,
 ) {
     let total_price = price * quantity;
-    
+
     let mut state_guard = state.lock().unwrap();
     state_guard.deposit_sell(total_price);
     remove_from_holdings(&symbol, quantity, &mut state_guard).await;
@@ -147,7 +147,12 @@ pub async fn create_sell_with_params(
 }
 
 // Update or create holding with new purchase, calculating average cost
-pub(crate) async fn add_to_holdings(ticker: &String, quantity: Decimal, price_per: Decimal, state: &mut AppState) {
+pub(crate) async fn add_to_holdings(
+    ticker: &String,
+    quantity: Decimal,
+    price_per: Decimal,
+    state: &mut AppState,
+) {
     let mut prev_holdings_map: HashMap<Symbol, Holding> = state.get_holdings_map();
 
     // Use HashMap's get method to check if holding exists

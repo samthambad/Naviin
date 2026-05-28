@@ -46,7 +46,14 @@ async fn load_trades(db: &DatabaseConnection) -> Result<Vec<Trade>, DbErr> {
                 "Sell" => Side::Sell,
                 _ => panic!("Unknown trade side: {}", t.side),
             };
-            Trade::from_database(t.symbol, t.quantity, t.price_per, side, t.timestamp, t.order_type)
+            Trade::from_database(
+                t.symbol,
+                t.quantity,
+                t.price_per,
+                side,
+                t.timestamp,
+                t.order_type,
+            )
         })
         .collect();
     Ok(trades)
@@ -180,10 +187,7 @@ async fn load_watchlist(db: &DatabaseConnection) -> Result<Vec<Symbol>, DbErr> {
 }
 
 /// Synchronizes the watchlist in the database by deleting all and re-inserting.
-async fn sync_watchlist(
-    txn: &DatabaseTransaction,
-    watchlist: &[Symbol],
-) -> Result<(), DbErr> {
+async fn sync_watchlist(txn: &DatabaseTransaction, watchlist: &[Symbol]) -> Result<(), DbErr> {
     WatchlistEntity::delete_many().exec(txn).await?;
 
     for symbol in watchlist {

@@ -61,7 +61,7 @@ pub async fn check_input_now() -> io::Result<String> {
     use tokio::io::AsyncBufReadExt;
     let mut reader = tokio::io::BufReader::new(tokio::io::stdin());
     let mut line = String::new();
-    
+
     // We use a select with a small timeout to check if stdin has data
     // without blocking the caller indefinitely
     tokio::select! {
@@ -73,4 +73,3 @@ pub async fn check_input_now() -> io::Result<String> {
         }
     }
 }
-

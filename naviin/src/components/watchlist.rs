@@ -1,8 +1,7 @@
 /// Watchlist Component - Displays stock symbols with real-time prices
-/// 
+///
 /// This component renders a table showing watched stock symbols and their
 /// current market prices. It supports navigation and price refresh.
-
 use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Rect},
@@ -28,9 +27,9 @@ pub struct WatchlistComponent {
 
 impl WatchlistComponent {
     /// SECTION: Constructor
-    
+
     /// Creates a new watchlist component with the given symbols
-    /// 
+    ///
     /// # Arguments
     /// * `symbols` - Vector of stock symbols to display
     pub fn new(symbols: Vec<Symbol>) -> Self {
@@ -46,9 +45,9 @@ impl WatchlistComponent {
     }
 
     /// SECTION: Data Management
-    
+
     /// Updates the list of symbols and resets selection
-    /// 
+    ///
     /// # Arguments
     /// * `symbols` - New vector of stock symbols
     pub fn update_symbols(&mut self, symbols: Vec<Symbol>) {
@@ -69,7 +68,7 @@ impl WatchlistComponent {
     }
 
     /// SECTION: Rendering
-    
+
     /// Renders the watchlist table with headers and data rows
     fn render_table(&self, area: Rect, buf: &mut Buffer) {
         // Create header row with styled column titles
@@ -111,7 +110,7 @@ impl WatchlistComponent {
             Block::default()
                 .borders(Borders::ALL)
                 .border_set(border::ROUNDED)
-                .title(" Watchlist ".bold())
+                .title(" Watchlist ".bold()),
         )
         .row_highlight_style(Style::default().bg(Color::DarkGray).fg(Color::White))
         .highlight_symbol("> ");
@@ -130,7 +129,9 @@ impl Widget for &WatchlistComponent {
                 Line::from(""),
                 Line::from("No symbols in watchlist").centered(),
                 Line::from(""),
-                Line::from("Add symbols to see prices here").centered().dim(),
+                Line::from("Add symbols to see prices here")
+                    .centered()
+                    .dim(),
             ]);
 
             Paragraph::new(empty_text)

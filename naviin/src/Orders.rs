@@ -44,9 +44,14 @@ impl Trade {
             order_type: "Market".to_string(),
         }
     }
-    
+
     // Create buy transaction with specific order type
-    fn buy_with_type(symbol: String, quantity: Decimal, price_per: Decimal, order_type: String) -> Self {
+    pub(crate) fn buy_with_type(
+        symbol: String,
+        quantity: Decimal,
+        price_per: Decimal,
+        order_type: String,
+    ) -> Self {
         Self {
             symbol,
             quantity,
@@ -56,9 +61,14 @@ impl Trade {
             order_type,
         }
     }
-    
+
     // Create sell transaction with specific order type
-   fn sell_with_type(symbol: String, quantity: Decimal, price_per: Decimal, order_type: String) -> Self {
+    pub(crate) fn sell_with_type(
+        symbol: String,
+        quantity: Decimal,
+        price_per: Decimal,
+        order_type: String,
+    ) -> Self {
         Self {
             symbol,
             quantity,
@@ -97,7 +107,14 @@ impl Trade {
         &self.order_type
     }
 
-    pub fn from_database(symbol: String, quantity: Decimal, price_per: Decimal, side: Side, timestamp: i64, order_type: String) -> Self {
+    pub fn from_database(
+        symbol: String,
+        quantity: Decimal,
+        price_per: Decimal,
+        side: Side,
+        timestamp: i64,
+        order_type: String,
+    ) -> Self {
         Self {
             symbol,
             quantity,
@@ -129,7 +146,13 @@ pub struct OpenOrder {
 }
 
 impl OpenOrder {
-    pub fn new(symbol: String, quantity: Decimal, price: Decimal, order_type: OrderType, side: Side) -> Self {
+    pub fn new(
+        symbol: String,
+        quantity: Decimal,
+        price: Decimal,
+        order_type: OrderType,
+        side: Side,
+    ) -> Self {
         let timestamp = Utc::now().timestamp();
         Self {
             symbol,
@@ -137,7 +160,7 @@ impl OpenOrder {
             price,
             timestamp,
             order_type,
-            side
+            side,
         }
     }
 
@@ -187,7 +210,7 @@ pub fn create_order(order_type: OrderType) -> Option<OpenOrder> {
             price,
             timestamp: Utc::now().timestamp(),
             order_type: OrderType::StopLoss,
-            side: Side::Sell
+            side: Side::Sell,
         },
         OrderType::TakeProfit => OpenOrder {
             symbol,
@@ -195,7 +218,7 @@ pub fn create_order(order_type: OrderType) -> Option<OpenOrder> {
             price,
             timestamp: Utc::now().timestamp(),
             order_type: OrderType::TakeProfit,
-            side: Side::Sell
+            side: Side::Sell,
         },
     };
     Some(order)
@@ -215,7 +238,12 @@ pub async fn buy_limit(state: &mut AppState, order: &OpenOrder) -> bool {
         }
         state.withdraw_purchase(total_purchase_value);
         crate::Finance::add_to_holdings(&symbol, purchase_qty, curr_price, state).await;
-        state.add_trade(Trade::buy_with_type(symbol, purchase_qty, curr_price, "BuyLimit".to_string()));
+        state.add_trade(Trade::buy_with_type(
+            symbol,
+            purchase_qty,
+            curr_price,
+            "BuyLimit".to_string(),
+        ));
         return true;
     }
     false
@@ -231,7 +259,12 @@ pub async fn sell_stop_loss(state: &mut AppState, order: &OpenOrder) -> bool {
     if curr_price <= limit_price {
         state.deposit_sell(total_sale_value);
         crate::Finance::remove_from_holdings(&symbol, sale_qty, state).await;
-        state.add_trade(Trade::sell_with_type(symbol, sale_qty, curr_price, "StopLoss".to_string()));
+        state.add_trade(Trade::sell_with_type(
+            symbol,
+            sale_qty,
+            curr_price,
+            "StopLoss".to_string(),
+        ));
         return true;
     }
     false
@@ -247,7 +280,12 @@ pub async fn sell_take_profit(state: &mut AppState, order: &OpenOrder) -> bool {
     if curr_price >= take_profit_price {
         state.deposit_sell(total_sale_value);
         crate::Finance::remove_from_holdings(&symbol, sale_qty, state).await;
-        state.add_trade(Trade::sell_with_type(symbol, sale_qty, take_profit_price, "TakeProfit".to_string()));
+        state.add_trade(Trade::sell_with_type(
+            symbol,
+            sale_qty,
+            take_profit_price,
+            "TakeProfit".to_string(),
+        ));
         return true;
     }
     false

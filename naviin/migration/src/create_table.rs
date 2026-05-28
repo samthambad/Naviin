@@ -74,7 +74,6 @@ impl MigrationTrait for Migration {
             .await?;
         Ok(())
     }
-
 }
 
 #[derive(DeriveIden)]

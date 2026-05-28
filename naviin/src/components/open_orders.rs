@@ -93,7 +93,7 @@ impl OpenOrdersComponent {
             Block::default()
                 .borders(Borders::ALL)
                 .border_set(border::ROUNDED)
-                .title(" Open Orders ".bold())
+                .title(" Open Orders ".bold()),
         )
         .row_highlight_style(Style::default().bg(Color::DarkGray).fg(Color::White))
         .highlight_symbol("> ");

@@ -1,31 +1,30 @@
 /// Command Handler Module
-/// 
+///
 /// Processes user commands and executes the appropriate actions.
 /// All command logic is centralized here for easy maintenance.
-
 use std::sync::{Arc, Mutex};
 
 use rust_decimal::Decimal;
 
-use crate::AppState::{monitor_order, AppState};
+use crate::AppState::{AppState, monitor_order};
 use crate::Finance;
 use crate::FinanceProvider;
-use crate::import;
 use crate::Orders;
 use crate::Storage;
+use crate::import;
 
 use sea_orm::DatabaseConnection;
 
 /// SECTION: Command Processing
 
 /// Main command processor - parses and executes commands
-/// 
+///
 /// # Arguments
 /// * `command` - The command string to process
 /// * `state` - Application state (holdings, cash, etc.)
 /// * `db` - Database connection for persistence
 /// * `running` - Flag for background order monitoring
-/// 
+///
 /// # Returns
 /// Result message to display in output area
 pub async fn process_command(
@@ -47,29 +46,29 @@ pub async fn process_command(
     let parts: Vec<&str> = trimmed.split_whitespace().collect();
     let cmd = parts[0].to_lowercase();
     let args = &parts[1..];
-    
+
     match cmd.as_str() {
         // Account commands
         "fund" => handle_fund(state, db, args).await,
         "withdraw" => handle_withdraw(state, db, args).await,
         "summary" => handle_summary(state).await,
-        
+
         // Price and watchlist commands
         "price" => handle_price(args).await,
         "addwatch" => handle_add_watch(state, db, args).await,
         "unwatch" => handle_remove_watch(state, db, args).await,
-        
+
         // Trading commands
         "buy" => handle_buy(state, db, args).await,
         "sell" => handle_sell(state, db, args).await,
         "buylimit" => handle_buy_limit(state, db, args).await,
         "stoploss" => handle_stop_loss(state, db, args).await,
         "takeprofit" => handle_take_profit(state, db, args).await,
-        
+
         // Background order commands
         "stopbg" => handle_stop_bg(running).await,
         "startbg" => handle_start_bg(state.clone(), running).await,
-        
+
         // Trade history command
         "trades" => handle_trades(state).await,
 
@@ -79,9 +78,12 @@ pub async fn process_command(
         "clear" => "__CLEAR__".to_string(),
         "help" => handle_help(),
         "exit" | "quit" => "Exiting...".to_string(),
-        
+
         // Unknown command
-        _ => format!("Unknown command: '{}'. Type 'help' for available commands.", cmd),
+        _ => format!(
+            "Unknown command: '{}'. Type 'help' for available commands.",
+            cmd
+        ),
     }
 }
 
@@ -97,19 +99,19 @@ async fn handle_fund(
     if args.is_empty() {
         return "Usage: fund <amount>".to_string();
     }
-    
+
     let amount: Decimal = match args[0].parse() {
         Ok(v) => v,
         Err(_) => return "Invalid amount".to_string(),
     };
-    
+
     if amount <= Decimal::ZERO {
         return "Amount must be positive".to_string();
     }
-    
+
     Finance::fund(state, amount).await;
     Storage::save_state(state, db).await;
-    
+
     format!("Added ${} to account", amount)
 }
 
@@ -123,24 +125,24 @@ async fn handle_withdraw(
     if args.is_empty() {
         return "Usage: withdraw <amount>".to_string();
     }
-    
+
     let amount: Decimal = match args[0].parse() {
         Ok(v) => v,
         Err(_) => return "Invalid amount".to_string(),
     };
-    
+
     let balance = {
         let state_guard = state.lock().unwrap();
         state_guard.check_balance()
     };
-    
+
     if amount > balance {
         return format!("Insufficient balance. Current: ${}", balance);
     }
-    
+
     Finance::withdraw(state, amount).await;
     Storage::save_state(state, db).await;
-    
+
     format!("Withdrew ${} from account", amount)
 }
 
@@ -151,7 +153,7 @@ async fn handle_summary(state: &Arc<Mutex<AppState>>) -> String {
     let balance = state_guard.check_balance();
     let watchlist = state_guard.get_watchlist();
     let holdings_count = state_guard.get_holdings_map().len();
-    
+
     format!(
         "Cash balance: ${}\nWatchlist: {} symbols\nHoldings: {} positions",
         balance,
@@ -168,10 +170,10 @@ async fn handle_price(args: &[&str]) -> String {
     if args.is_empty() {
         return "Usage: price <symbol>".to_string();
     }
-    
+
     let symbol = args[0].to_uppercase();
     let price = FinanceProvider::curr_price(&symbol, false).await;
-    
+
     if price == Decimal::ZERO {
         format!("Could not fetch price for {}", symbol)
     } else {
@@ -189,7 +191,7 @@ async fn handle_add_watch(
     if args.is_empty() {
         return "Usage: addwatch <symbol>".to_string();
     }
-    
+
     let symbol = args[0].to_uppercase();
     let mut action_result = false;
     {
@@ -213,19 +215,18 @@ async fn handle_remove_watch(
     if args.is_empty() {
         return "Usage: unwatch <symbol>".to_string();
     }
-    
+
     let symbol = args[0].to_uppercase();
-    let mut action_result = false; 
+    let mut action_result = false;
     {
         let mut state_guard = state.lock().unwrap();
-       action_result = state_guard.remove_from_watchlist(symbol.clone());
+        action_result = state_guard.remove_from_watchlist(symbol.clone());
     }
     if action_result {
         Storage::save_state(state, db).await;
         return format!("Removed {} from watchlist", symbol);
     }
     format!("Error removing {} from watchlist", symbol)
-     
 }
 
 /// SECTION: Trading Commands
@@ -240,40 +241,46 @@ async fn handle_buy(
     if args.len() < 2 {
         return "Usage: buy <symbol> <quantity>".to_string();
     }
-    
+
     let symbol = args[0].to_uppercase();
     let quantity: Decimal = match args[1].parse() {
         Ok(v) => v,
         Err(_) => return "Invalid quantity".to_string(),
     };
-    
+
     if quantity <= Decimal::ZERO {
         return "Quantity must be positive".to_string();
     }
-    
+
     // Get current price
     let price = FinanceProvider::curr_price(&symbol, false).await;
     if price == Decimal::ZERO {
         return format!("Could not get price for {}", symbol);
     }
-    
+
     let total_cost = price * quantity;
-    
+
     // Check balance
     let balance = {
         let state_guard = state.lock().unwrap();
         state_guard.check_balance()
     };
-    
+
     if total_cost > balance {
-        return format!("Insufficient funds. Need ${:.2}, have ${:.2}", total_cost, balance);
+        return format!(
+            "Insufficient funds. Need ${:.2}, have ${:.2}",
+            total_cost, balance
+        );
     }
-    
+
     // Execute buy
     Finance::create_buy_with_params(state, symbol.clone(), quantity, price).await;
     Storage::save_state(state, db).await;
-    
-    format!("Bought {} shares of {} at ${:.2} (total: ${:.2})", quantity, symbol, price, total_cost)
+
+    format!(
+        "Bought {} shares of {} at ${:.2} (total: ${:.2})",
+        quantity, symbol, price, total_cost
+    )
 }
 
 /// Executes a market sell order
@@ -286,40 +293,46 @@ async fn handle_sell(
     if args.len() < 2 {
         return "Usage: sell <symbol> <quantity>".to_string();
     }
-    
+
     let symbol = args[0].to_uppercase();
     let quantity: Decimal = match args[1].parse() {
         Ok(v) => v,
         Err(_) => return "Invalid quantity".to_string(),
     };
-    
+
     if quantity <= Decimal::ZERO {
         return "Quantity must be positive".to_string();
     }
-    
+
     // Check holdings
     let available_qty = {
         let state_guard = state.lock().unwrap();
         state_guard.get_ticker_holdings_qty(&symbol)
     };
-    
+
     if quantity > available_qty {
-        return format!("Insufficient holdings. Have {:.2} shares of {}", available_qty, symbol);
+        return format!(
+            "Insufficient holdings. Have {:.2} shares of {}",
+            available_qty, symbol
+        );
     }
-    
+
     // Get current price
     let price = FinanceProvider::curr_price(&symbol, false).await;
     if price == Decimal::ZERO {
         return format!("Could not get price for {}", symbol);
     }
-    
+
     let total_value = price * quantity;
-    
+
     // Execute sell
     Finance::create_sell_with_params(state, symbol.clone(), quantity, price).await;
     Storage::save_state(state, db).await;
-    
-    format!("Sold {} shares of {} at ${:.2} (total: ${:.2})", quantity, symbol, price, total_value)
+
+    format!(
+        "Sold {} shares of {} at ${:.2} (total: ${:.2})",
+        quantity, symbol, price, total_value
+    )
 }
 
 /// Creates a buy limit order
@@ -332,7 +345,7 @@ async fn handle_buy_limit(
     if args.len() < 3 {
         return "Usage: buylimit <symbol> <quantity> <price>".to_string();
     }
-    
+
     let symbol = args[0].to_uppercase();
     let quantity: Decimal = match args[1].parse() {
         Ok(v) => v,
@@ -342,11 +355,11 @@ async fn handle_buy_limit(
         Ok(v) => v,
         Err(_) => return "Invalid price".to_string(),
     };
-    
+
     if quantity <= Decimal::ZERO || price <= Decimal::ZERO {
         return "Quantity and price must be positive".to_string();
     }
-    
+
     // Create order
     let order = Orders::OpenOrder::new(
         symbol.clone(),
@@ -355,14 +368,20 @@ async fn handle_buy_limit(
         Orders::OrderType::BuyLimit,
         Orders::Side::Buy,
     );
-    
+
     {
         let mut state_guard = state.lock().unwrap();
-        match state_guard.add_open_order(order) { Ok(msg) => msg, Err(e) => return e };
+        match state_guard.add_open_order(order) {
+            Ok(msg) => msg,
+            Err(e) => return e,
+        };
     }
     Storage::save_state(state, db).await;
-    
-    format!("Buy limit order created: {} shares of {} at ${:.2}", quantity, symbol, price)
+
+    format!(
+        "Buy limit order created: {} shares of {} at ${:.2}",
+        quantity, symbol, price
+    )
 }
 
 /// Creates a stop loss order
@@ -375,7 +394,7 @@ async fn handle_stop_loss(
     if args.len() < 3 {
         return "Usage: stoploss <symbol> <quantity> <price>".to_string();
     }
-    
+
     let symbol = args[0].to_uppercase();
     let quantity: Decimal = match args[1].parse() {
         Ok(v) => v,
@@ -385,21 +404,24 @@ async fn handle_stop_loss(
         Ok(v) => v,
         Err(_) => return "Invalid price".to_string(),
     };
-    
+
     if quantity <= Decimal::ZERO || price <= Decimal::ZERO {
         return "Quantity and price must be positive".to_string();
     }
-    
+
     // Check holdings
     let available_qty = {
         let state_guard = state.lock().unwrap();
         state_guard.get_ticker_holdings_qty(&symbol)
     };
-    
+
     if quantity > available_qty {
-        return format!("Insufficient holdings. Have {:.2} shares of {}", available_qty, symbol);
+        return format!(
+            "Insufficient holdings. Have {:.2} shares of {}",
+            available_qty, symbol
+        );
     }
-    
+
     // Create order
     let order = Orders::OpenOrder::new(
         symbol.clone(),
@@ -408,14 +430,20 @@ async fn handle_stop_loss(
         Orders::OrderType::StopLoss,
         Orders::Side::Sell,
     );
-    
+
     {
         let mut state_guard = state.lock().unwrap();
-        match state_guard.add_open_order(order) { Ok(msg) => msg, Err(e) => return e };
+        match state_guard.add_open_order(order) {
+            Ok(msg) => msg,
+            Err(e) => return e,
+        };
     }
     Storage::save_state(state, db).await;
-    
-    format!("Stop loss order created: {} shares of {} at ${:.2}", quantity, symbol, price)
+
+    format!(
+        "Stop loss order created: {} shares of {} at ${:.2}",
+        quantity, symbol, price
+    )
 }
 
 /// Creates a take profit order
@@ -428,7 +456,7 @@ async fn handle_take_profit(
     if args.len() < 3 {
         return "Usage: takeprofit <symbol> <quantity> <price>".to_string();
     }
-    
+
     let symbol = args[0].to_uppercase();
     let quantity: Decimal = match args[1].parse() {
         Ok(v) => v,
@@ -438,21 +466,24 @@ async fn handle_take_profit(
         Ok(v) => v,
         Err(_) => return "Invalid price".to_string(),
     };
-    
+
     if quantity <= Decimal::ZERO || price <= Decimal::ZERO {
         return "Quantity and price must be positive".to_string();
     }
-    
+
     // Check holdings
     let available_qty = {
         let state_guard = state.lock().unwrap();
         state_guard.get_ticker_holdings_qty(&symbol)
     };
-    
+
     if quantity > available_qty {
-        return format!("Insufficient holdings. Have {:.2} shares of {}", available_qty, symbol);
+        return format!(
+            "Insufficient holdings. Have {:.2} shares of {}",
+            available_qty, symbol
+        );
     }
-    
+
     // Create order
     let order = Orders::OpenOrder::new(
         symbol.clone(),
@@ -461,14 +492,20 @@ async fn handle_take_profit(
         Orders::OrderType::TakeProfit,
         Orders::Side::Sell,
     );
-    
+
     {
         let mut state_guard = state.lock().unwrap();
-        match state_guard.add_open_order(order) { Ok(msg) => msg, Err(e) => return e };
+        match state_guard.add_open_order(order) {
+            Ok(msg) => msg,
+            Err(e) => return e,
+        };
     }
     Storage::save_state(state, db).await;
-    
-    format!("Take profit order created: {} shares of {} at ${:.2}", quantity, symbol, price)
+
+    format!(
+        "Take profit order created: {} shares of {} at ${:.2}",
+        quantity, symbol, price
+    )
 }
 
 /// SECTION: Background Order Commands
@@ -482,9 +519,12 @@ async fn handle_stop_bg(running: &Arc<std::sync::atomic::AtomicBool>) -> String 
 
 /// Starts background order monitoring
 /// Usage: startbg
-async fn handle_start_bg(state: Arc<Mutex<AppState>>, running: &Arc<std::sync::atomic::AtomicBool>) -> String {
+async fn handle_start_bg(
+    state: Arc<Mutex<AppState>>,
+    running: &Arc<std::sync::atomic::AtomicBool>,
+) -> String {
     running.store(true, std::sync::atomic::Ordering::Relaxed);
-    monitor_order(state, running.clone()).await;
+    monitor_order(state, running.clone());
     "Background order monitoring started".to_string()
 }
 
@@ -573,6 +613,6 @@ fn handle_help() -> String {
         exit, quit                 - Exit application\n\n\
         NAVIGATION:\n\
         PgUp/PgDn                  - Scroll output\n\
-        Ctrl+Home/Ctrl+End         - Output top/bottom"
+        Ctrl+Home/Ctrl+End         - Output top/bottom",
     )
 }

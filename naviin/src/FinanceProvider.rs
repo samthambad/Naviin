@@ -36,13 +36,16 @@ pub async fn curr_price(symbol: &String, print: bool) -> Decimal {
                 if print {
                     println!("Current price: {amt}");
                 }
-                amt }
+                amt
+            }
             None => {
                 eprintln!("{symbol} -> current price unavailable");
-                Decimal::ZERO }
+                Decimal::ZERO
+            }
         },
         Err(err) => {
             eprintln!("Failed to fetch {symbol} fast info: {err}");
-            Decimal::ZERO }
+            Decimal::ZERO
+        }
     }
 }

@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::thread;
 use std::time::Duration;
 
-use rust_decimal::prelude::*;
 use chrono;
+use rust_decimal::prelude::*;
+use tokio::time;
 
 use crate::Finance::{Holding, Symbol};
 use crate::Orders::{OpenOrder, OrderType, Side, Trade};
@@ -95,11 +95,11 @@ impl AppState {
         new_trades.push(trade_to_add);
         self.trades = new_trades;
     }
-    
+
     pub fn set_trades(&mut self, new_trades: Vec<Trade>) {
         self.trades = new_trades;
     }
-    
+
     pub fn get_trades(&self) -> Vec<Trade> {
         self.trades.clone()
     }
@@ -110,22 +110,31 @@ impl AppState {
         if self.trades.is_empty() {
             return "No trades yet".to_string();
         }
-        
+
         let mut result = String::from("Trade History:\n");
         result.push_str("────────────────────────────────────────────────────────────\n");
-        result.push_str(&format!("{:<10} {:<8} {:<6} {:<8} {:<12} {:<16}\n", "Type", "Symbol", "Side", "Qty", "Price", "Time"));
+        result.push_str(&format!(
+            "{:<10} {:<8} {:<6} {:<8} {:<12} {:<16}\n",
+            "Type", "Symbol", "Side", "Qty", "Price", "Time"
+        ));
         result.push_str("────────────────────────────────────────────────────────────\n");
-        
-        for trade in self.trades.iter().rev().take(20) { // Show last 20, most recent first
-            let datetime = chrono::DateTime::<chrono::Utc>::from_timestamp(trade.get_timestamp(), 0)
-                .map(|dt| dt.with_timezone(&chrono::Local).format("%Y-%m-%d %H:%M").to_string())
-                .unwrap_or_else(|| "Unknown".to_string());
-            
+
+        for trade in self.trades.iter().rev().take(20) {
+            // Show last 20, most recent first
+            let datetime =
+                chrono::DateTime::<chrono::Utc>::from_timestamp(trade.get_timestamp(), 0)
+                    .map(|dt| {
+                        dt.with_timezone(&chrono::Local)
+                            .format("%Y-%m-%d %H:%M")
+                            .to_string()
+                    })
+                    .unwrap_or_else(|| "Unknown".to_string());
+
             let side = match trade.get_side() {
                 Side::Buy => "BUY",
                 Side::Sell => "SELL",
             };
-            
+
             result.push_str(&format!(
                 "{:<10} {:<8} {:<6} {:<8} ${:<11.2} {:<16}\n",
                 trade.get_order_type(),
@@ -136,11 +145,11 @@ impl AppState {
                 datetime
             ));
         }
-        
+
         if self.trades.len() > 20 {
             result.push_str(&format!("\n... and {} more trades", self.trades.len() - 20));
         }
-        
+
         result
     }
 
@@ -221,7 +230,9 @@ impl AppState {
     pub fn add_open_order(&mut self, new_order: OpenOrder) -> Result<String, String> {
         if new_order.get_side() == Side::Sell {
             // Check that you have enough to sell after accounting for existing sell orders
-            if self.get_available_holdings_qty(new_order.get_symbol()) - new_order.get_qty() < Decimal::ZERO {
+            if self.get_available_holdings_qty(new_order.get_symbol()) - new_order.get_qty()
+                < Decimal::ZERO
+            {
                 return Err("You don't have enough of this to sell!".to_string());
             }
         } else {
@@ -264,43 +275,155 @@ fn open_order_sorting(order_arr: &mut Vec<OpenOrder>) {
     });
 }
 
-// Background thread that monitors and executes pending orders when conditions are met
-pub async fn monitor_order(state: Arc<Mutex<AppState>>, running: Arc<AtomicBool>) {
-    // create a thread
-    thread::spawn(move || {
-        let rt = tokio::runtime::Runtime::new().unwrap();
+// Background task that monitors and executes pending orders when conditions are met
+pub fn monitor_order(state: Arc<Mutex<AppState>>, running: Arc<AtomicBool>) {
+    tokio::spawn(async move {
+        let mut interval = time::interval(Duration::from_secs(10));
+
         while running.load(Ordering::Relaxed) {
-            {
-                let mut state_guard = state.lock().unwrap();
-                let open_orders: Vec<OpenOrder> = state_guard.get_open_orders();
-                let mut orders_executed: Vec<OpenOrder> = Vec::new();
-                for o in open_orders {
-                    rt.block_on(async {
-                        match o.get_order_type() {
-                            OrderType::BuyLimit => {
-                                if crate::Orders::buy_limit(&mut state_guard, &o).await {
-                                    orders_executed.push(o);
-                                }
-                            }
-                            OrderType::StopLoss => {
-                                if crate::Orders::sell_stop_loss(&mut state_guard, &o).await {
-                                    orders_executed.push(o);
-                                }
-                            }
-                            OrderType::TakeProfit => {
-                                if crate::Orders::sell_take_profit(&mut state_guard, &o).await {
-                                    orders_executed.push(o);
-                                }
-                            }
-                        }
-                    });
-                }
-                for o in orders_executed {
-                    state_guard.remove_from_open_orders(o);
+            interval.tick().await;
+
+            let open_orders = {
+                let state_guard = state.lock().unwrap();
+                state_guard.get_open_orders()
+            };
+
+            let mut priced_orders = Vec::new();
+            for order in open_orders {
+                let symbol = order.get_symbol().clone();
+                let current_price = crate::FinanceProvider::curr_price(&symbol, false).await;
+                priced_orders.push((order, current_price));
+            }
+
+            let mut state_guard = state.lock().unwrap();
+            for (order, current_price) in priced_orders {
+                if execute_order_with_price(&mut state_guard, &order, current_price) {
+                    state_guard.remove_from_open_orders(order);
                 }
             }
-            thread::sleep(Duration::from_secs(10))
         }
-        println!("Order shutting down")
+        println!("Order shutting down");
     });
+}
+
+fn execute_order_with_price(
+    state: &mut AppState,
+    order: &OpenOrder,
+    current_price: Decimal,
+) -> bool {
+    match order.get_order_type() {
+        OrderType::BuyLimit => execute_buy_limit_with_price(state, order, current_price),
+        OrderType::StopLoss => execute_stop_loss_with_price(state, order, current_price),
+        OrderType::TakeProfit => execute_take_profit_with_price(state, order, current_price),
+    }
+}
+
+fn execute_buy_limit_with_price(
+    state: &mut AppState,
+    order: &OpenOrder,
+    current_price: Decimal,
+) -> bool {
+    let symbol = order.get_symbol().clone();
+    let limit_price = order.get_price_per();
+    let purchase_qty = order.get_qty();
+    let total_purchase_value = current_price * purchase_qty;
+
+    if current_price > limit_price || total_purchase_value > state.check_balance() {
+        return false;
+    }
+
+    state.withdraw_purchase(total_purchase_value);
+    add_to_holdings(state, &symbol, purchase_qty, current_price);
+    state.add_trade(Trade::buy_with_type(
+        symbol,
+        purchase_qty,
+        current_price,
+        "BuyLimit".to_string(),
+    ));
+    true
+}
+
+fn execute_stop_loss_with_price(
+    state: &mut AppState,
+    order: &OpenOrder,
+    current_price: Decimal,
+) -> bool {
+    let symbol = order.get_symbol().clone();
+    let stop_price = order.get_price_per();
+    let sale_qty = order.get_qty();
+
+    if current_price > stop_price {
+        return false;
+    }
+
+    state.deposit_sell(current_price * sale_qty);
+    remove_from_holdings(state, &symbol, sale_qty);
+    state.add_trade(Trade::sell_with_type(
+        symbol,
+        sale_qty,
+        current_price,
+        "StopLoss".to_string(),
+    ));
+    true
+}
+
+fn execute_take_profit_with_price(
+    state: &mut AppState,
+    order: &OpenOrder,
+    current_price: Decimal,
+) -> bool {
+    let symbol = order.get_symbol().clone();
+    let take_profit_price = order.get_price_per();
+    let sale_qty = order.get_qty();
+
+    if current_price < take_profit_price {
+        return false;
+    }
+
+    state.deposit_sell(take_profit_price * sale_qty);
+    remove_from_holdings(state, &symbol, sale_qty);
+    state.add_trade(Trade::sell_with_type(
+        symbol,
+        sale_qty,
+        take_profit_price,
+        "TakeProfit".to_string(),
+    ));
+    true
+}
+
+fn add_to_holdings(state: &mut AppState, ticker: &String, quantity: Decimal, price_per: Decimal) {
+    if let Some(existing_holding) = state.holdings.get(ticker) {
+        let prev_avg_cost = existing_holding.get_avg_price();
+        let prev_qty = existing_holding.get_qty();
+        let new_avg_cost =
+            (prev_qty * prev_avg_cost + quantity * price_per) / (prev_qty + quantity);
+        let new_qty = prev_qty + quantity;
+
+        state.holdings.insert(
+            ticker.clone(),
+            Holding::new(ticker.clone(), new_qty, new_avg_cost),
+        );
+    } else {
+        state.holdings.insert(
+            ticker.clone(),
+            Holding::new(ticker.clone(), quantity, price_per),
+        );
+    }
+}
+
+fn remove_from_holdings(state: &mut AppState, ticker: &String, quantity: Decimal) {
+    if let Some(existing_holding) = state.holdings.get(ticker) {
+        let prev_avg_cost = existing_holding.get_avg_price();
+        let prev_qty = existing_holding.get_qty();
+        let new_qty = prev_qty - quantity;
+
+        if new_qty == Decimal::ZERO {
+            state.holdings.remove(ticker);
+        } else {
+            state.holdings.insert(
+                ticker.clone(),
+                Holding::new(ticker.clone(), new_qty, prev_avg_cost),
+            );
+        }
+    }
 }
