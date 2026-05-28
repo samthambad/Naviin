@@ -11,7 +11,7 @@ use super::entities::watchlist::ActiveModel as WatchlistActiveModel;
 use super::entities::watchlist::Entity as WatchlistEntity;
 use crate::AppState::AppState;
 use crate::Finance::{Holding, Symbol};
-use crate::Orders::{OpenOrder, Side, Trade};
+use crate::Orders::{OpenOrder, OrderType, Side, Trade};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, Database, DatabaseConnection, DatabaseTransaction, DbErr,
     EntityTrait, IntoActiveModel, NotSet, QueryFilter, Set, TransactionTrait,
@@ -57,24 +57,27 @@ async fn load_open_orders(db: &DatabaseConnection) -> Result<Vec<OpenOrder>, DbE
     let open_orders: Vec<OpenOrder> = open_orders_models
         .into_iter()
         .map(|o| match o.order_type.as_str() {
-            "BuyLimit" => OpenOrder::BuyLimit {
-                symbol: o.symbol,
-                quantity: o.quantity,
-                price: o.price,
-                timestamp: o.timestamp,
-            },
-            "StopLoss" => OpenOrder::StopLoss {
-                symbol: o.symbol,
-                quantity: o.quantity,
-                price: o.price,
-                timestamp: o.timestamp,
-            },
-            "TakeProfit" => OpenOrder::TakeProfit {
-                symbol: o.symbol,
-                quantity: o.quantity,
-                price: o.price,
-                timestamp: o.timestamp,
-            },
+            "BuyLimit" => OpenOrder::new(
+                o.symbol,
+                o.quantity,
+                o.price,
+                OrderType::BuyLimit,
+                Side::Buy,
+            ),
+            "StopLoss" => OpenOrder::new(
+                o.symbol,
+                o.quantity,
+                o.price,
+                OrderType::StopLoss,
+                Side::Sell,
+            ),
+            "TakeProfit" => OpenOrder::new(
+                o.symbol,
+                o.quantity,
+                o.price,
+                OrderType::TakeProfit,
+                Side::Sell,
+            ),
             _ => panic!("Unknown order type: {}", o.order_type),
         })
         .collect();
@@ -152,33 +155,18 @@ async fn sync_open_orders(
     OpenOrderEntity::delete_many().exec(txn).await?;
 
     for open_order in open_orders {
-        let (order_type_str, symbol, quantity, price, timestamp) = match open_order {
-            OpenOrder::BuyLimit {
-                symbol,
-                quantity,
-                price,
-                timestamp,
-            } => ("BuyLimit", symbol, quantity, price, timestamp),
-            OpenOrder::StopLoss {
-                symbol,
-                quantity,
-                price,
-                timestamp,
-            } => ("StopLoss", symbol, quantity, price, timestamp),
-            OpenOrder::TakeProfit {
-                symbol,
-                quantity,
-                price,
-                timestamp,
-            } => ("TakeProfit", symbol, quantity, price, timestamp),
+        let order_type_str = match open_order.get_order_type() {
+            OrderType::BuyLimit => "BuyLimit",
+            OrderType::StopLoss => "StopLoss",
+            OrderType::TakeProfit => "TakeProfit",
         };
         let db_order = OpenOrderActiveModel {
             id: NotSet,
             order_type: Set(order_type_str.to_string()),
-            symbol: Set(symbol.clone()),
-            quantity: Set(*quantity),
-            price: Set(*price),
-            timestamp: Set(*timestamp),
+            symbol: Set(open_order.get_symbol().clone()),
+            quantity: Set(open_order.get_qty()),
+            price: Set(open_order.get_price_per()),
+            timestamp: Set(open_order.get_timestamp()),
         };
         db_order.insert(txn).await?;
     }

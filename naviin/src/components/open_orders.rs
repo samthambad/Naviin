@@ -10,7 +10,7 @@ use ratatui::{
     widgets::{Block, Borders, Cell, Paragraph, Row, Table, TableState, Widget},
 };
 
-use crate::Orders::OpenOrder;
+use crate::Orders::{OpenOrder, OrderType};
 
 /// Component that displays open orders
 pub struct OpenOrdersComponent {
@@ -63,14 +63,13 @@ impl OpenOrdersComponent {
 
                 // Color based on order type
                 let type_color = match order_type {
-                    "BuyLimit" => Color::Green,
-                    "StopLoss" => Color::Red,
-                    "TakeProfit" => Color::Blue,
-                    _ => Color::White,
+                    OrderType::BuyLimit => Color::Green,
+                    OrderType::StopLoss => Color::Red,
+                    OrderType::TakeProfit => Color::Blue,
                 };
 
                 let cells = vec![
-                    Cell::from(order_type.to_string()).style(Style::default().fg(type_color)),
+                    Cell::from(format!("{:?}", order_type)).style(Style::default().fg(type_color)),
                     Cell::from(symbol.clone()),
                     Cell::from(format!("{:.2}", qty)),
                     Cell::from(format!("{:.2}", price)),

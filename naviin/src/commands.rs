@@ -161,7 +161,7 @@ async fn handle_summary(state: &Arc<Mutex<AppState>>) -> String {
 }
 
 /// SECTION: Price and Watchlist Commands
-
+///
 /// Gets current price for a symbol
 /// Usage: price <symbol>
 async fn handle_price(args: &[&str]) -> String {
@@ -348,12 +348,13 @@ async fn handle_buy_limit(
     }
     
     // Create order
-    let order = Orders::OpenOrder::BuyLimit {
-        symbol: symbol.clone(),
+    let order = Orders::OpenOrder::new(
+        symbol.clone(),
         quantity,
         price,
-        timestamp: chrono::Utc::now().timestamp(),
-    };
+        Orders::OrderType::BuyLimit,
+        Orders::Side::Buy,
+    );
     
     {
         let mut state_guard = state.lock().unwrap();
@@ -400,12 +401,13 @@ async fn handle_stop_loss(
     }
     
     // Create order
-    let order = Orders::OpenOrder::StopLoss {
-        symbol: symbol.clone(),
+    let order = Orders::OpenOrder::new(
+        symbol.clone(),
         quantity,
         price,
-        timestamp: chrono::Utc::now().timestamp(),
-    };
+        Orders::OrderType::StopLoss,
+        Orders::Side::Sell,
+    );
     
     {
         let mut state_guard = state.lock().unwrap();
@@ -452,12 +454,13 @@ async fn handle_take_profit(
     }
     
     // Create order
-    let order = Orders::OpenOrder::TakeProfit {
-        symbol: symbol.clone(),
+    let order = Orders::OpenOrder::new(
+        symbol.clone(),
         quantity,
         price,
-        timestamp: chrono::Utc::now().timestamp(),
-    };
+        Orders::OrderType::TakeProfit,
+        Orders::Side::Sell,
+    );
     
     {
         let mut state_guard = state.lock().unwrap();

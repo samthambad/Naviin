@@ -29,6 +29,20 @@ use crate::components::output::OutputComponent;
 use crate::components::watchlist::WatchlistComponent;
 use crate::Finance::Symbol;
 
+/// Layout areas for all UI components
+struct LayoutAreas {
+    /// Area for holdings component (top left)
+    holdings: Rect,
+    /// Area for open orders component (top middle)
+    open_orders: Rect,
+    /// Area for watchlist component (top right)
+    watchlist: Rect,
+    /// Area for input component (middle)
+    input: Rect,
+    /// Area for output component (bottom)
+    output: Rect,
+}
+
 /// Main TUI application state and coordinator
 pub struct Tui {
     /// Flag to indicate if the application should exit
@@ -116,7 +130,8 @@ impl Tui {
                         Err(_) => {} // Error reading event
                     }
                 }
-                
+
+                // TODO: refresh after executing orders
                 // Handle periodic refresh every 5 seconds
                 _ = refresh_timer.tick() => {
                     self.refresh_prices_only().await;
@@ -315,16 +330,3 @@ impl Tui {
     }
 }
 
-/// Layout areas for all UI components
-struct LayoutAreas {
-    /// Area for holdings component (top left)
-    holdings: Rect,
-    /// Area for open orders component (top middle)
-    open_orders: Rect,
-    /// Area for watchlist component (top right)
-    watchlist: Rect,
-    /// Area for input component (middle)
-    input: Rect,
-    /// Area for output component (bottom)
-    output: Rect,
-}

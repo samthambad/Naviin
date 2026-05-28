@@ -1,6 +1,6 @@
 use naviin::AppState::AppState;
 use naviin::Finance::Holding;
-use naviin::Orders::{OpenOrder, Side, Trade};
+use naviin::Orders::{OpenOrder, OrderType, Side, Trade};
 use naviin::Storage;
 use std::sync::{Arc, Mutex};
 // ===== Integration Tests for AppState + Finance =====
@@ -34,9 +34,9 @@ fn test_limit_order_management() {
     state.deposit(100000.0);
 
     // Add multiple limit orders
-    let order1 = OpenOrder::new("AAPL".to_string(), 10.0, 145.0, Side::Buy);
-    let order2 = OpenOrder::new("GOOGL".to_string(), 5.0, 2800.0, Side::Buy);
-    let order3 = OpenOrder::new("MSFT".to_string(), 15.0, 340.0, Side::Buy);
+    let order1 = OpenOrder::new("AAPL".to_string(), 10.0, 145.0, OrderType::BuyLimit, Side::Buy);
+    let order2 = OpenOrder::new("GOOGL".to_string(), 5.0, 2800.0, OrderType::BuyLimit, Side::Buy);
+    let order3 = OpenOrder::new("MSFT".to_string(), 15.0, 340.0, OrderType::BuyLimit, Side::Buy);
 
     state.add_open_order(order1.clone());
     state.add_open_order(order2.clone());
@@ -89,7 +89,7 @@ fn test_fund_withdraw_and_reset() {
     {
         let mut guard = state.lock().unwrap();
         guard.deposit(20000.0);
-        let order = OpenOrder::new("AAPL".to_string(), 10.0, 150.0, Side::Buy);
+        let order = OpenOrder::new("AAPL".to_string(), 10.0, 150.0, OrderType::BuyLimit, Side::Buy);
         guard.add_open_order(order);
     }
 
@@ -125,9 +125,9 @@ fn test_order_removal_with_multiple_identical_symbols() {
     state.deposit(100000.0);
 
     // Add multiple orders for same symbol but different prices
-    let order1 = OpenOrder::new("AAPL".to_string(), 10.0, 145.0, Side::Buy);
-    let order2 = OpenOrder::new("AAPL".to_string(), 10.0, 150.0, Side::Buy);
-    let order3 = OpenOrder::new("AAPL".to_string(), 10.0, 155.0, Side::Buy);
+    let order1 = OpenOrder::new("AAPL".to_string(), 10.0, 145.0, OrderType::BuyLimit, Side::Buy);
+    let order2 = OpenOrder::new("AAPL".to_string(), 10.0, 150.0, OrderType::BuyLimit, Side::Buy);
+    let order3 = OpenOrder::new("AAPL".to_string(), 10.0, 155.0, OrderType::BuyLimit, Side::Buy);
 
     state.add_open_order(order1.clone());
     state.add_open_order(order2.clone());
@@ -189,8 +189,8 @@ fn test_order_removal_nonexistent_order() {
     // Add funds for buy order
     state.deposit(20000.0);
 
-    let order1 = OpenOrder::new("AAPL".to_string(), 10.0, 150.0, Side::Buy);
-    let order2 = OpenOrder::new("GOOGL".to_string(), 5.0, 2800.0, Side::Buy);
+    let order1 = OpenOrder::new("AAPL".to_string(), 10.0, 150.0, OrderType::BuyLimit, Side::Buy);
+    let order2 = OpenOrder::new("GOOGL".to_string(), 5.0, 2800.0, OrderType::BuyLimit, Side::Buy);
 
     state.add_open_order(order1.clone());
 
@@ -223,7 +223,7 @@ fn test_state_with_holdings_and_orders() {
     state.deposit(10000.0);
 
     // Add order
-    let order = OpenOrder::new("AAPL".to_string(), 10.0, 150.0, Side::Buy);
+    let order = OpenOrder::new("AAPL".to_string(), 10.0, 150.0, OrderType::BuyLimit, Side::Buy);
     state.add_open_order(order);
 
     // Add trade

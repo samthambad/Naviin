@@ -8,7 +8,7 @@ use rust_decimal::prelude::*;
 use chrono;
 
 use crate::Finance::{Holding, Symbol};
-use crate::Orders::{OpenOrder, Side, Trade};
+use crate::Orders::{OpenOrder, OrderType, Side, Trade};
 
 // Manages user account state including cash, holdings, trades, and pending orders
 #[derive(Debug)]
@@ -231,7 +231,7 @@ impl AppState {
             }
         }
         let symbol = new_order.get_symbol().clone();
-        let order_type = new_order.get_order_type().to_string();
+        let order_type = format!("{:?}", new_order.get_order_type());
         self.open_orders.push(new_order);
         open_order_sorting(&mut self.open_orders);
         Ok(format!("{} order added for {}", order_type, symbol))
@@ -276,33 +276,18 @@ pub async fn monitor_order(state: Arc<Mutex<AppState>>, running: Arc<AtomicBool>
                 let mut orders_executed: Vec<OpenOrder> = Vec::new();
                 for o in open_orders {
                     rt.block_on(async {
-                        match o {
-                            OpenOrder::BuyLimit {
-                                symbol: _,
-                                quantity: _,
-                                price: _,
-                                timestamp: _,
-                            } => {
+                        match o.get_order_type() {
+                            OrderType::BuyLimit => {
                                 if crate::Orders::buy_limit(&mut state_guard, &o).await {
                                     orders_executed.push(o);
                                 }
                             }
-                            OpenOrder::StopLoss {
-                                symbol: _,
-                                quantity: _,
-                                price: _,
-                                timestamp: _,
-                            } => {
+                            OrderType::StopLoss => {
                                 if crate::Orders::sell_stop_loss(&mut state_guard, &o).await {
                                     orders_executed.push(o);
                                 }
                             }
-                            OpenOrder::TakeProfit {
-                                symbol: _,
-                                quantity: _,
-                                price: _,
-                                timestamp: _,
-                            } => {
+                            OrderType::TakeProfit => {
                                 if crate::Orders::sell_take_profit(&mut state_guard, &o).await {
                                     orders_executed.push(o);
                                 }
