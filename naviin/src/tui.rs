@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 /// TUI Module - Main terminal user interface
 ///
 /// This module coordinates the display of UI areas:
@@ -16,8 +17,10 @@ use ratatui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout, Rect},
 };
+use rust_decimal::Decimal;
 use sea_orm::DatabaseConnection;
 use tokio::time::{Instant, interval};
+use tokio::sync::mpsc;
 
 use crate::AppState::AppState;
 use crate::Finance::Symbol;
@@ -27,6 +30,7 @@ use crate::components::input::InputComponent;
 use crate::components::open_orders::OpenOrdersComponent;
 use crate::components::output::OutputComponent;
 use crate::components::watchlist::WatchlistComponent;
+use crate::FinanceProvider;
 
 /// Layout areas for all UI components
 struct LayoutAreas {
@@ -64,8 +68,19 @@ pub struct Tui {
     running: Arc<std::sync::atomic::AtomicBool>,
     /// Last time data was refreshed (for status/debugging)
     last_refresh: Instant,
+
+    message_tx: mpsc::UnboundedSender<TuiMessage>,
+    message_rx: mpsc::UnboundedReceiver<TuiMessage>,
+    price_refresh_running: bool,
 }
 
+/// Used for message passing via channel
+enum TuiMessage {
+    PricesUpdated {
+        holdings: HashMap<Symbol, Decimal>,
+        watchlist: HashMap<Symbol, Decimal>,
+    },
+}
 impl Tui {
     /// SECTION: Constructor
 
@@ -76,6 +91,7 @@ impl Tui {
         db: DatabaseConnection,
         running: Arc<std::sync::atomic::AtomicBool>,
     ) -> Self {
+        let (message_tx, message_rx) = mpsc::unbounded_channel();
         Self {
             exit: false,
             holdings: HoldingsComponent::new(),
@@ -87,6 +103,9 @@ impl Tui {
             db,
             running,
             last_refresh: Instant::now(),
+            message_tx,
+            message_rx,
+            price_refresh_running: false,
         }
     }
 
@@ -133,9 +152,8 @@ impl Tui {
                 // TODO: refresh after executing orders
                 // Handle periodic refresh every 5 seconds
                 _ = refresh_timer.tick() => {
-                    self.refresh_prices_only().await;
+                    self.refresh_all().await;
                     self.last_refresh = Instant::now();
-                    needs_redraw = true; // Redraw after price refresh
                 }
             }
         }
@@ -317,21 +335,38 @@ impl Tui {
         drop(state_guard);
 
         // Fetch prices for holdings and watchlist in parallel
-        self.refresh_prices_only().await;
+        Self::start_refresh_price(self);
     }
 
-    /// Refreshes only prices (not the full state)
-    /// Optimized for the 5-second auto-refresh timer
-    /// Fetches prices concurrently for maximum performance
-    async fn refresh_prices_only(&mut self) {
-        // Fetch prices concurrently using tokio::join for maximum performance
-        // This runs both refresh operations in parallel
-        tokio::join!(
-            self.holdings.refresh_prices(),
-            self.watchlist.refresh_prices()
-        );
+    /// Spawns a background task to fetch holdings/watchlist prices without blocking the UI loop.
+    /// Sends a `TuiMessage::PricesUpdated` through `message_tx` when the refresh completes.
+    async fn start_refresh_price(&mut self) {
+        // Fetch prices for holdings and watchlist in parallel
+        let tx = self.message_tx.clone();
+        let holdings_symbols = self.holdings.get_holdings();
+        let watchlist_symbols = self.watchlist.get_symbols();
+        tokio::spawn(async move {
+            let message = refresh_prices(holdings_symbols, watchlist_symbols).await;
+            let _ = tx.send(message);
+        });
     }
+    async fn refresh_prices(holding_symbols: Vec<Symbol>, watchlist_symbols: Vec<Symbol>) -> TuiMessage {
 
+        let mut holdings_map: HashMap<Symbol, Decimal> = HashMap::new();
+        for symbol in holding_symbols {
+            let price = FinanceProvider::curr_price(&symbol, false).await;
+            holdings_map.insert(symbol, price);
+        }
+        let mut watchlist_map: HashMap<Symbol, Decimal> = HashMap::new();
+        for symbol in watchlist_symbols {
+            let price = FinanceProvider::curr_price(&symbol, false).await;
+            watchlist_map.insert(symbol, price);
+        }
+        TuiMessage::PricesUpdated {
+            holdings: holdings_map,
+            watchlist: watchlist_map,
+        }
+    }
     /// SECTION: Application Control
 
     /// Signals the application to exit

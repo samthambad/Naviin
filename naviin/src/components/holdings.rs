@@ -42,6 +42,10 @@ impl HoldingsComponent {
             cash: Decimal::ZERO,
         }
     }
+    
+    pub fn get_holdings(&self) -> Vec<Symbol> {
+        self.holdings.keys().cloned().collect()
+    }
 
     /// SECTION: Data Management
 
@@ -55,14 +59,6 @@ impl HoldingsComponent {
         }
     }
 
-    /// Fetches current prices for all holdings
-    pub async fn refresh_prices(&mut self) {
-        self.prices.clear();
-        for symbol in self.holdings.keys() {
-            let price = FinanceProvider::curr_price(symbol, false).await;
-            self.prices.insert(symbol.clone(), price);
-        }
-    }
 
     /// SECTION: Rendering
 

@@ -43,6 +43,10 @@ impl WatchlistComponent {
             table_state,
         }
     }
+    
+    pub fn get_symbols(&self) -> Vec<Symbol> {
+        self.symbols.clone()
+    }
 
     /// SECTION: Data Management
 
