@@ -11,6 +11,7 @@ use ratatui::{
     widgets::{Block, Borders, Cell, Paragraph, Row, Table, TableState, Widget},
 };
 use rust_decimal::Decimal;
+use std::collections::HashMap;
 
 use crate::Finance::Symbol;
 use crate::FinanceProvider;
@@ -20,7 +21,7 @@ pub struct WatchlistComponent {
     /// List of stock symbols being watched
     symbols: Vec<Symbol>,
     /// Cached prices for each symbol (aligned by index)
-    prices: Vec<Decimal>,
+    prices: HashMap<Symbol, Decimal>,
     /// Current selected row in the table
     table_state: TableState,
 }
@@ -39,11 +40,11 @@ impl WatchlistComponent {
         }
         Self {
             symbols,
-            prices: Vec::new(),
+            prices: HashMap::new(),
             table_state,
         }
     }
-    
+
     pub fn get_symbols(&self) -> Vec<Symbol> {
         self.symbols.clone()
     }
@@ -64,11 +65,15 @@ impl WatchlistComponent {
     /// Fetches current prices for all symbols from the finance provider
     /// This is an async operation that updates the cached prices
     pub async fn refresh_prices(&mut self) {
-        self.prices = Vec::with_capacity(self.symbols.len());
+        self.prices.clear();
         for symbol in &self.symbols {
             let price = FinanceProvider::curr_price(symbol, false).await;
-            self.prices.push(price);
+            self.prices.insert(symbol.clone(), price);
         }
+    }
+
+    pub fn update_prices(&mut self, prices: HashMap<Symbol, Decimal>) {
+        self.prices = prices;
     }
 
     /// SECTION: Rendering
@@ -86,9 +91,8 @@ impl WatchlistComponent {
         let rows: Vec<Row> = self
             .symbols
             .iter()
-            .enumerate()
-            .map(|(i, symbol)| {
-                let price = self.prices.get(i).copied().unwrap_or(Decimal::ZERO);
+            .map(|symbol| {
+                let price = self.prices.get(symbol).copied().unwrap_or(Decimal::ZERO);
                 let price_str = if price == Decimal::ZERO {
                     "N/A".to_string()
                 } else {

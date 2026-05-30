@@ -19,18 +19,18 @@ use ratatui::{
 };
 use rust_decimal::Decimal;
 use sea_orm::DatabaseConnection;
-use tokio::time::{Instant, interval};
 use tokio::sync::mpsc;
+use tokio::time::{Instant, interval};
 
 use crate::AppState::AppState;
 use crate::Finance::Symbol;
+use crate::FinanceProvider;
 use crate::commands::process_command;
 use crate::components::holdings::HoldingsComponent;
 use crate::components::input::InputComponent;
 use crate::components::open_orders::OpenOrdersComponent;
 use crate::components::output::OutputComponent;
 use crate::components::watchlist::WatchlistComponent;
-use crate::FinanceProvider;
 
 /// Layout areas for all UI components
 struct LayoutAreas {
@@ -154,6 +154,17 @@ impl Tui {
                 _ = refresh_timer.tick() => {
                     self.refresh_all().await;
                     self.last_refresh = Instant::now();
+                }
+
+                Some(message) = self.message_rx.recv() => {
+                    match message {
+                        TuiMessage::PricesUpdated { holdings, watchlist} => {
+                            self.holdings.update_prices(holdings);
+                            self.watchlist.update_prices(watchlist);
+                            self.price_refresh_running = false;
+                            needs_redraw = true;
+                        }
+                    }
                 }
             }
         }
@@ -334,24 +345,32 @@ impl Tui {
         // Release lock before async operations
         drop(state_guard);
 
-        // Fetch prices for holdings and watchlist in parallel
-        Self::start_refresh_price(self);
+        // Fetch prices for holdings and watchlist in the background.
+        self.start_refresh_price();
     }
 
     /// Spawns a background task to fetch holdings/watchlist prices without blocking the UI loop.
     /// Sends a `TuiMessage::PricesUpdated` through `message_tx` when the refresh completes.
-    async fn start_refresh_price(&mut self) {
+    fn start_refresh_price(&mut self) {
+        if self.price_refresh_running {
+            return;
+        }
+
+        self.price_refresh_running = true;
+
         // Fetch prices for holdings and watchlist in parallel
-        let tx = self.message_tx.clone();
+        let tx = self.message_tx.clone(); // cloned due to move block, which takes ownership of variables
         let holdings_symbols = self.holdings.get_holdings();
         let watchlist_symbols = self.watchlist.get_symbols();
         tokio::spawn(async move {
-            let message = refresh_prices(holdings_symbols, watchlist_symbols).await;
+            let message = Self::refresh_prices(holdings_symbols, watchlist_symbols).await;
             let _ = tx.send(message);
         });
     }
-    async fn refresh_prices(holding_symbols: Vec<Symbol>, watchlist_symbols: Vec<Symbol>) -> TuiMessage {
-
+    async fn refresh_prices(
+        holding_symbols: Vec<Symbol>,
+        watchlist_symbols: Vec<Symbol>,
+    ) -> TuiMessage {
         let mut holdings_map: HashMap<Symbol, Decimal> = HashMap::new();
         for symbol in holding_symbols {
             let price = FinanceProvider::curr_price(&symbol, false).await;

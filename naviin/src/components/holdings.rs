@@ -42,7 +42,7 @@ impl HoldingsComponent {
             cash: Decimal::ZERO,
         }
     }
-    
+
     pub fn get_holdings(&self) -> Vec<Symbol> {
         self.holdings.keys().cloned().collect()
     }
@@ -59,6 +59,9 @@ impl HoldingsComponent {
         }
     }
 
+    pub fn update_prices(&mut self, prices: HashMap<Symbol, Decimal>) {
+        self.prices = prices;
+    }
 
     /// SECTION: Rendering
 
