@@ -82,27 +82,27 @@ impl HoldingsComponent {
                 let holding = self.holdings.get(symbol).unwrap();
                 let qty = holding.get_qty();
                 let avg = holding.get_avg_price();
-                let curr_price = self.prices.get(symbol).copied().unwrap_or(Decimal::ZERO);
+                let curr_price = self.prices.get(symbol).copied();
 
                 // Calculate P&L
-                let pnl = (curr_price - avg) * qty;
-                let pnl_str = if curr_price == Decimal::ZERO {
-                    "N/A".to_string()
-                } else {
-                    format!("{:.2}", pnl)
-                };
-                let pnl_color = if pnl >= Decimal::ZERO {
+                let pnl = curr_price.map(|price| (price - avg) * qty);
+                let pnl_str = pnl
+                    .map(|value| format!("{:.2}", value))
+                    .unwrap_or_else(|| "Loading".to_string());
+                let pnl_color = if pnl.unwrap_or(Decimal::ZERO) >= Decimal::ZERO {
                     Color::Green
                 } else {
                     Color::Red
                 };
+                let price_str = curr_price
+                    .map(|price| format!("{:.2}", price))
+                    .unwrap_or_else(|| "Loading".to_string());
 
                 let cells = vec![
                     Cell::from(symbol.clone()),
                     Cell::from(format!("{:.2}", qty)),
                     Cell::from(format!("{:.2}", avg)),
-                    Cell::from(format!("{:.2}", curr_price))
-                        .style(Style::default().fg(Color::Green)),
+                    Cell::from(price_str).style(Style::default().fg(Color::Green)),
                     Cell::from(pnl_str).style(Style::default().fg(pnl_color)),
                 ];
 

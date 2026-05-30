@@ -92,12 +92,11 @@ impl WatchlistComponent {
             .symbols
             .iter()
             .map(|symbol| {
-                let price = self.prices.get(symbol).copied().unwrap_or(Decimal::ZERO);
-                let price_str = if price == Decimal::ZERO {
-                    "N/A".to_string()
-                } else {
-                    format!("{:.2}", price)
-                };
+                let price_str = self
+                    .prices
+                    .get(symbol)
+                    .map(|price| format!("{:.2}", price))
+                    .unwrap_or_else(|| "Loading".to_string());
 
                 let cells = vec![
                     Cell::from(symbol.clone()),
