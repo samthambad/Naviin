@@ -14,7 +14,6 @@ use rust_decimal::Decimal;
 use std::collections::HashMap;
 
 use crate::Finance::Symbol;
-use crate::FinanceProvider;
 
 /// Component that displays the watchlist with real-time prices
 pub struct WatchlistComponent {
@@ -59,16 +58,6 @@ impl WatchlistComponent {
         self.symbols = symbols;
         if !self.symbols.is_empty() && self.table_state.selected().is_none() {
             self.table_state.select(Some(0));
-        }
-    }
-
-    /// Fetches current prices for all symbols from the finance provider
-    /// This is an async operation that updates the cached prices
-    pub async fn refresh_prices(&mut self) {
-        self.prices.clear();
-        for symbol in &self.symbols {
-            let price = FinanceProvider::curr_price(symbol, false).await;
-            self.prices.insert(symbol.clone(), price);
         }
     }
 
