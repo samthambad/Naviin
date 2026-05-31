@@ -25,14 +25,7 @@ Naviin is evolving from a paper trading tool into a robust platform for financia
 
 ### Phase 2: Technical Analysis & Strategy Engine
 - [x] Import
-- Options
-- Scripting
-- Dividends
-- Transaction Modeling: Configurable commissions and fees for realistic performance simulation.
-- ...
-
-### Phase 3: Quantitative Research Platform
-- ...
+- [ ] Backtesting (WIP)
 
 ## Tech Stack
 
