@@ -5,13 +5,9 @@
 
 ## Backtesting -> Real investing pipeline
 
-[ Historical Backtest ]
-│  (Validates basic logic & risk boundaries)
-▼
-[ Out-of-Sample Testing ]
-│  (Tests the strategy on data it has never seen before)
-▼
-[ Paper Trading / Forward Testing ]
-│  (Simulates live market execution, latency, and slippage)
-▼
-[ Live Production (Small Capital) ]
+```mermaid
+graph TD
+A["Historical Backtest: Validates basic logic & risk boundaries"] --> B[Out-of-Sample Testing]
+B["Out-of-Sample Testing: Tests the strategy on data it has never seen before"] --> C[Paper Trading / Forward Testing]
+C["Paper Trading / Forward Testing: Simulates live market execution, latency, and slippage"] --> D[Live Production Small Capital]
+```
