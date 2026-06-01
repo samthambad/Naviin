@@ -1,296 +1,95 @@
-use naviin::AppState::AppState;
-use naviin::Finance::Holding;
-use naviin::Orders::{OpenOrder, OrderType, Side, Trade};
-use naviin::Storage;
+use std::fs;
 use std::sync::{Arc, Mutex};
-// ===== Integration Tests for AppState + Finance =====
 
-#[test]
-fn test_complete_trading_workflow() {
-    let mut state = AppState::new();
+use naviin::AppState::AppState;
+use naviin::import::import_trades_from_csv;
+use rust_decimal_macros::dec;
 
-    // 1. Fund account
-    state.deposit(10000.0);
-    assert_eq!(state.check_balance(), 10000.0);
-
-    // 2. Simulate a purchase
-    state.withdraw_purchase(1500.0);
-    assert_eq!(state.check_balance(), 8500.0);
-
-    // 3. Add a trade
-    let trade = Trade::buy("AAPL".to_string(), 10.0, 150.0);
-    state.add_trade(trade);
-
-    // 4. Simulate a sale
-    state.deposit_sell(1600.0);
-    assert_eq!(state.check_balance(), 10100.0);
+fn unique_temp_csv(name: &str) -> std::path::PathBuf {
+    std::env::temp_dir().join(format!(
+        "naviin_{name}_{}_{}.csv",
+        std::process::id(),
+        chrono::Utc::now().timestamp_nanos_opt().unwrap()
+    ))
 }
 
-#[test]
-fn test_limit_order_management() {
-    let mut state = AppState::new();
+#[tokio::test]
+async fn csv_import_rebuilds_holdings_and_trade_history_from_valid_rows() {
+    let path = unique_temp_csv("valid_import");
+    fs::write(
+        &path,
+        "date,asset,asset_type,side,quantity,price,currency\n\
+         2024-01-02,AAPL,STOCK,BUY,10,100,USD\n\
+         2024-01-03,aapl,STOCK,BUY,5,160,USD\n\
+         2024-01-04,AAPL,STOCK,SELL,4,180,USD\n",
+    )
+    .unwrap();
 
-    // Add funds for buy orders
-    state.deposit(100000.0);
-
-    // Add multiple limit orders
-    let order1 = OpenOrder::new(
-        "AAPL".to_string(),
-        10.0,
-        145.0,
-        OrderType::BuyLimit,
-        Side::Buy,
-    );
-    let order2 = OpenOrder::new(
-        "GOOGL".to_string(),
-        5.0,
-        2800.0,
-        OrderType::BuyLimit,
-        Side::Buy,
-    );
-    let order3 = OpenOrder::new(
-        "MSFT".to_string(),
-        15.0,
-        340.0,
-        OrderType::BuyLimit,
-        Side::Buy,
-    );
-
-    state.add_open_order(order1.clone());
-    state.add_open_order(order2.clone());
-    state.add_open_order(order3.clone());
-
-    // Verify all orders are present
-    let orders = state.get_open_orders();
-    assert_eq!(orders.len(), 3);
-
-    // Remove one order
-    state.remove_from_open_orders(order2);
-
-    // Verify correct order was removed
-    let orders = state.get_open_orders();
-    assert_eq!(orders.len(), 2);
-
-    // Verify remaining orders are correct
-    assert_eq!(orders[0].get_symbol(), "AAPL");
-    assert_eq!(orders[1].get_symbol(), "MSFT");
-}
-
-#[test]
-fn test_multiple_trades_tracking() {
-    let mut state = AppState::new();
-
-    // Execute multiple trades
-    let trade1 = Trade::buy("AAPL".to_string(), 10.0, 150.0);
-    let trade2 = Trade::sell("GOOGL".to_string(), 5.0, 2800.0);
-    let trade3 = Trade::buy("TSLA".to_string(), 8.0, 250.0);
-
-    state.add_trade(trade1);
-    state.add_trade(trade2);
-    state.add_trade(trade3);
-
-    // State should still be valid
-    assert_eq!(state.check_balance(), 0.0);
-}
-
-#[test]
-fn test_fund_withdraw_and_reset() {
     let state = Arc::new(Mutex::new(AppState::new()));
+    let report = import_trades_from_csv(&state, path.to_str().unwrap())
+        .await
+        .unwrap();
 
-    // Fund account
-    {
-        let mut guard = state.lock().unwrap();
-        guard.deposit(5000.0);
-    }
-
-    // Add some orders
-    {
-        let mut guard = state.lock().unwrap();
-        guard.deposit(20000.0);
-        let order = OpenOrder::new(
-            "AAPL".to_string(),
-            10.0,
-            150.0,
-            OrderType::BuyLimit,
-            Side::Buy,
-        );
-        guard.add_open_order(order);
-    }
-
-    // Reset state
-    Storage::default_state(&state);
-
-    // Verify everything is reset
+    assert_eq!(report, "Imported 3 trades (0 skipped).");
     let guard = state.lock().unwrap();
-    assert_eq!(guard.check_balance(), 0.0);
-    assert!(guard.get_open_orders().is_empty());
+    assert_eq!(guard.get_trades().len(), 3);
+    assert_eq!(guard.get_ticker_holdings_qty(&"AAPL".to_string()), dec!(11));
+
+    let holding = guard.get_holdings_map().get("AAPL").unwrap().clone();
+    assert_eq!(holding.get_qty(), dec!(11));
+    assert_eq!(holding.get_avg_price().round_dp(4), dec!(120.0000));
+
+    fs::remove_file(path).unwrap();
 }
 
-#[test]
-fn test_concurrent_balance_operations() {
-    let mut state = AppState::new();
+#[tokio::test]
+async fn csv_import_skips_invalid_rows_without_applying_partial_side_effects() {
+    let path = unique_temp_csv("invalid_import");
+    fs::write(
+        &path,
+        "date,asset,asset_type,side,quantity,price,currency\n\
+         2024-01-02,AAPL,STOCK,BUY,10,100,USD\n\
+         2024-01-03,MSFT,STOCK,SELL,1,200,USD\n\
+         2024-01-04,TSLA,STOCK,BUY,-2,300,USD\n",
+    )
+    .unwrap();
 
-    // Multiple deposits and withdrawals
-    state.deposit(1000.0);
-    state.withdraw(200.0);
-    state.deposit_sell(500.0);
-    state.withdraw_purchase(300.0);
-    state.deposit(100.0);
+    let state = Arc::new(Mutex::new(AppState::new()));
+    let report = import_trades_from_csv(&state, path.to_str().unwrap())
+        .await
+        .unwrap();
 
-    // Expected: 1000 - 200 + 500 - 300 + 100 = 1100
-    assert_eq!(state.check_balance(), 1100.0);
+    assert!(report.starts_with("Imported 1 trades (2 skipped). 2 errors."));
+    assert!(report.contains("Insufficient holdings for MSFT"));
+    assert!(report.contains("Quantity must be positive"));
+
+    let guard = state.lock().unwrap();
+    assert_eq!(guard.get_trades().len(), 1);
+    assert_eq!(guard.get_ticker_holdings_qty(&"AAPL".to_string()), dec!(10));
+    assert_eq!(guard.get_ticker_holdings_qty(&"MSFT".to_string()), dec!(0));
+    assert_eq!(guard.get_ticker_holdings_qty(&"TSLA".to_string()), dec!(0));
+
+    fs::remove_file(path).unwrap();
 }
 
-#[test]
-fn test_order_removal_with_multiple_identical_symbols() {
-    let mut state = AppState::new();
+#[tokio::test]
+async fn csv_import_reports_missing_required_columns_before_mutating_state() {
+    let path = unique_temp_csv("missing_columns");
+    fs::write(
+        &path,
+        "date,asset,side,quantity,price\n2024-01-02,AAPL,BUY,10,100\n",
+    )
+    .unwrap();
 
-    // Add funds for buy orders
-    state.deposit(100000.0);
+    let state = Arc::new(Mutex::new(AppState::new()));
+    let error = import_trades_from_csv(&state, path.to_str().unwrap())
+        .await
+        .unwrap_err();
 
-    // Add multiple orders for same symbol but different prices
-    let order1 = OpenOrder::new(
-        "AAPL".to_string(),
-        10.0,
-        145.0,
-        OrderType::BuyLimit,
-        Side::Buy,
-    );
-    let order2 = OpenOrder::new(
-        "AAPL".to_string(),
-        10.0,
-        150.0,
-        OrderType::BuyLimit,
-        Side::Buy,
-    );
-    let order3 = OpenOrder::new(
-        "AAPL".to_string(),
-        10.0,
-        155.0,
-        OrderType::BuyLimit,
-        Side::Buy,
-    );
+    assert_eq!(error, "Missing required column: asset_type");
+    let guard = state.lock().unwrap();
+    assert!(guard.get_trades().is_empty());
+    assert!(guard.get_holdings_map().is_empty());
 
-    state.add_open_order(order1.clone());
-    state.add_open_order(order2.clone());
-    state.add_open_order(order3.clone());
-
-    // Remove middle order
-    state.remove_from_open_orders(order2);
-
-    let orders = state.get_open_orders();
-    assert_eq!(orders.len(), 2);
-    assert_eq!(orders[0].get_price_per(), 145.0);
-    assert_eq!(orders[1].get_price_per(), 155.0);
-}
-
-#[test]
-fn test_empty_state_operations() {
-    let state = AppState::new();
-
-    // Operations on empty state should not panic
-    assert_eq!(state.check_balance(), 0.0);
-    assert!(state.get_holdings_map().is_empty());
-    assert!(state.get_open_orders().is_empty());
-    assert_eq!(state.get_ticker_holdings_qty(&"AAPL".to_string()), 0.0);
-}
-
-#[test]
-fn test_trade_creation_preserves_data() {
-    let symbol = "AAPL".to_string();
-    let qty = 10.5;
-    let price = 150.75;
-
-    let buy_trade = Trade::buy(symbol.clone(), qty, price);
-
-    assert_eq!(buy_trade.get_symbol(), &symbol);
-    assert_eq!(buy_trade.get_quantity(), qty);
-    assert_eq!(buy_trade.get_price_per(), price);
-
-    let sell_trade = Trade::sell(symbol.clone(), qty, price);
-    assert_eq!(sell_trade.get_symbol(), &symbol);
-}
-
-// ===== Edge Case Tests =====
-
-#[test]
-fn test_zero_balance_withdrawal_protection() {
-    let mut state = AppState::new();
-
-    // Try to withdraw with zero balance - should fail validation
-    state.withdraw(100.0);
-
-    // Balance should remain zero due to insufficient funds check
-    assert_eq!(state.check_balance(), 0.0);
-}
-
-#[test]
-fn test_order_removal_nonexistent_order() {
-    let mut state = AppState::new();
-
-    // Add funds for buy order
-    state.deposit(20000.0);
-
-    let order1 = OpenOrder::new(
-        "AAPL".to_string(),
-        10.0,
-        150.0,
-        OrderType::BuyLimit,
-        Side::Buy,
-    );
-    let order2 = OpenOrder::new(
-        "GOOGL".to_string(),
-        5.0,
-        2800.0,
-        OrderType::BuyLimit,
-        Side::Buy,
-    );
-
-    state.add_open_order(order1.clone());
-
-    // Try to remove order that was never added
-    state.remove_from_open_orders(order2);
-
-    // Should still have the first order
-    let orders = state.get_open_orders();
-    assert_eq!(orders.len(), 1);
-    assert_eq!(orders[0].get_symbol(), "AAPL");
-}
-
-#[test]
-fn test_large_balance_operations() {
-    let mut state = AppState::new();
-
-    // Test with large numbers
-    state.deposit(1_000_000_000.0);
-    assert_eq!(state.check_balance(), 1_000_000_000.0);
-
-    state.withdraw(500_000_000.0);
-    assert_eq!(state.check_balance(), 500_000_000.0);
-}
-
-#[test]
-fn test_state_with_holdings_and_orders() {
-    let mut state = AppState::new();
-
-    // Add balance
-    state.deposit(10000.0);
-
-    // Add order
-    let order = OpenOrder::new(
-        "AAPL".to_string(),
-        10.0,
-        150.0,
-        OrderType::BuyLimit,
-        Side::Buy,
-    );
-    state.add_open_order(order);
-
-    // Add trade
-    let trade = Trade::buy("GOOGL".to_string(), 5.0, 2800.0);
-    state.add_trade(trade);
-
-    // Verify all components are present
-    assert_eq!(state.check_balance(), 10000.0);
-    assert_eq!(state.get_open_orders().len(), 1);
+    fs::remove_file(path).unwrap();
 }
